@@ -124,6 +124,36 @@ export type Invoice = {
   invoice_items?: InvoiceItem[];
 };
 
+export type TeamMember = {
+  id: string;
+  name: string;
+  role: string;
+  bio: string | null;
+  photo_url: string | null;
+  linkedin_url: string | null;
+  display_order: number;
+  created_at: string;
+};
+
+export type Certificate = {
+  id: string;
+  title: string;
+  issuer: string | null;
+  issued_year: string | null;
+  image_url: string | null;
+  description: string | null;
+  display_order: number;
+  created_at: string;
+};
+
+export type AboutContent = {
+  id: string;
+  key: string;
+  value: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type InvoiceItem = {
   id: string;
   invoice_id: string;
