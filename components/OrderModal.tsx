@@ -27,72 +27,51 @@ export default function OrderModal({ product, onClose }: Props) {
     setForm((p) => ({ ...p, [name]: name === 'quantity' ? parseInt(value) || 1 : value }));
   };
 
- const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError('');
 
-  setError("");
-
-  if (
-    !form.customer_name.trim() ||
-    !form.customer_email.trim() ||
-    !form.customer_phone.trim() ||
-    !form.customer_address.trim()
-  ) {
-    setError("Please fill in all required fields.");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const orderData = {
-      product_id: product.id,
-      product_name: product.name,
-      product_price: Number(product.price),
-      gst_percentage: Number(product.gst_percentage ?? 18),
-
-      customer_name: form.customer_name.trim(),
-      customer_email: form.customer_email.trim(),
-      customer_phone: form.customer_phone.trim(),
-      customer_address: form.customer_address.trim(),
-
-      quantity: Math.max(1, Number(form.quantity)),
-      notes: form.notes.trim(),
-
-      status: "pending",
-    };
-
-    console.log("========== ORDER DATA ==========");
-    console.log(orderData);
-
-    const { data, error: dbError } = await supabase
-      .from("orders")
-      .insert(orderData)
-      .select();
-
-    console.log("========== INSERT RESULT ==========");
-    console.log("DATA:", data);
-    console.log("ERROR:", dbError);
-
-    if (dbError) {
-      console.error(dbError);
-      setError(dbError.message);
+    if (
+      !form.customer_name.trim() ||
+      !form.customer_email.trim() ||
+      !form.customer_phone.trim() ||
+      !form.customer_address.trim()
+    ) {
+      setError('Please fill in all required fields.');
       return;
     }
 
-    setStep("success");
-  } catch (err) {
-    console.error("Unexpected Error:", err);
+    setLoading(true);
 
-    setError(
-      err instanceof Error
-        ? err.message
-        : "Something went wrong while placing the order."
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      const orderData = {
+        product_id: product.id,
+        product_name: product.name,
+        product_price: Number(product.price),
+        gst_percentage: Number(product.gst_percentage ?? 18),
+        customer_name: form.customer_name.trim(),
+        customer_email: form.customer_email.trim(),
+        customer_phone: form.customer_phone.trim(),
+        customer_address: form.customer_address.trim(),
+        quantity: Math.max(1, Number(form.quantity)),
+        notes: form.notes.trim() || null,
+        status: 'pending',
+      };
+
+      const { error: dbError } = await supabase.from('orders').insert(orderData);
+
+      if (dbError) {
+        setError(dbError.message);
+        return;
+      }
+
+      setStep('success');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong while placing the order.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const gstRate = product.gst_percentage ?? 18;
   const baseAmount = product.price * form.quantity;
@@ -173,7 +152,7 @@ export default function OrderModal({ product, onClose }: Props) {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
+            <form id="orderForm" onSubmit={handleSubmit} className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{error}</div>
               )}
@@ -265,10 +244,10 @@ export default function OrderModal({ product, onClose }: Props) {
               >
                 Cancel
               </button>
-            <button
-  type="submit"
-  form="orderForm"
-  disabled={loading}
+              <button
+                type="submit"
+                form="orderForm"
+                disabled={loading}
                 className="flex-1 px-4 py-2.5 bg-green-800 text-white rounded-xl font-medium text-sm hover:bg-green-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
