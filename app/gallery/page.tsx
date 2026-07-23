@@ -2,8 +2,20 @@ import { supabase } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 
 export const revalidate = 0;
+
+export const metadata: Metadata = {
+  title: 'Gallery — Our Products & Showroom',
+  description: 'Explore the Bharat Advance gallery — a visual showcase of our products, collections, and showroom highlights.',
+  alternates: { canonical: '/gallery' },
+  openGraph: {
+    title: 'Gallery — Bharat Advance',
+    description: 'Browse photos of our products, showroom, and collections.',
+    url: '/gallery',
+  },
+};
 
 export default async function GalleryPage() {
   const { data: items } = await supabase.from('gallery').select('*').order('display_order');

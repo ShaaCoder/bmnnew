@@ -3,8 +3,20 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 
 export const revalidate = 0;
+
+export const metadata: Metadata = {
+  title: 'All Products — Browse Our Collection',
+  description: 'Browse the full range of premium products at Bharat Advance. Filter by category, find what you need, and order with GST-compliant billing.',
+  alternates: { canonical: '/products' },
+  openGraph: {
+    title: 'All Products — Bharat Advance',
+    description: 'Shop our curated collection of premium products across all categories.',
+    url: '/products',
+  },
+};
 
 type Props = {
   searchParams: { category?: string; q?: string };

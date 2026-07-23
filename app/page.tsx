@@ -4,8 +4,21 @@ import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import Link from 'next/link';
 import { ArrowRight, Shield, Truck, Headphones, Award } from 'lucide-react';
+import type { Metadata } from 'next';
 
 export const revalidate = 0;
+
+export const metadata: Metadata = {
+  title: 'Bharat Advance — Premium Quality Products Online',
+  description: 'Shop premium electronics, home decor, fashion, and more at Bharat Advance. GST-compliant invoicing, secure payments, and fast delivery across India.',
+  alternates: { canonical: '/' },
+  openGraph: {
+    title: 'Bharat Advance — Premium Quality Products Online',
+    description: 'Shop electronics, home decor, fashion and more. Trusted by 10,000+ customers across India.',
+    url: '/',
+    images: [{ url: '/bmn_logo.jpeg', width: 800, height: 800, alt: 'Bharat Advance' }],
+  },
+};
 
 export default async function HomePage() {
   const [{ data: featured }, { data: categories }, { data: gallery }] = await Promise.all([

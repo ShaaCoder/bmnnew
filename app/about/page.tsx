@@ -3,6 +3,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import {
   Award, Target, Eye, Users, ArrowRight, Building2,
   Phone, Mail, MapPin, Linkedin, ShieldCheck, Star,
@@ -10,6 +11,18 @@ import {
 import type { TeamMember, Certificate, CompanySettings } from '@/lib/supabase';
 
 export const revalidate = 0;
+
+export const metadata: Metadata = {
+  title: 'About Us — Our Story, Team & Certificates',
+  description: 'Learn about Bharat Advance — our mission, vision, founder story, team, core values, and industry certifications. Serving India from Delhi since 2020.',
+  alternates: { canonical: '/about' },
+  openGraph: {
+    title: 'About Bharat Advance — Story, Team & Certificates',
+    description: 'Trusted by 10,000+ customers. Discover who we are, what drives us, and the certifications that back our quality.',
+    url: '/about',
+    images: [{ url: '/bmn_logo.jpeg', alt: 'Bharat Advance' }],
+  },
+};
 
 export default async function AboutPage() {
   const [
