@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { MetadataRoute } from 'next';
 
-const SITE_URL = 'https://bharat-advance.netlify.app';
+const SITE_URL = 'https://www.bmnenterprises.in/';
 
 export const revalidate = 3600;
 
