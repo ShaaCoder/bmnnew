@@ -1,0 +1,2 @@
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS gst_percentage numeric NOT NULL DEFAULT 18;
