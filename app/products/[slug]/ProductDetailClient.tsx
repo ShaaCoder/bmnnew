@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ShoppingCart, ChevronLeft, ChevronRight, Package, Tag, ZoomIn } from 'lucide-react';
 import type { Product } from '@/lib/supabase';
 import OrderModal from '@/components/OrderModal';
+import ReviewSection from '@/components/ReviewSection';
 import Link from 'next/link';
 
 export default function ProductDetailClient({ product }: { product: Product & { categories?: any } }) {
@@ -140,6 +141,8 @@ export default function ProductDetailClient({ product }: { product: Product & { 
       </div>
 
       {orderOpen && <OrderModal product={product as any} onClose={() => setOrderOpen(false)} />}
+
+      <ReviewSection productId={product.id} />
     </>
   );
 }

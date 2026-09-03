@@ -154,6 +154,20 @@ export type AboutContent = {
   updated_at: string;
 };
 
+export type ProductReview = {
+  id: string;
+  product_id: string;
+  reviewer_name: string;
+  rating: number;
+  title: string | null;
+  body: string | null;
+  images: string[];
+  status: 'pending' | 'approved' | 'rejected';
+  admin_reply: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type HsnCode = {
   id: string;
   code: string;

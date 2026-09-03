@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAdmin } from '@/lib/admin-auth';
-import { LayoutDashboard, Package, Grid3x3 as Grid3X3, Image, MessageSquare, ShoppingCart, LogOut, Menu, X, Receipt, Settings } from 'lucide-react';
+import { LayoutDashboard, Package, Grid3x3 as Grid3X3, Image, MessageSquare, ShoppingCart, LogOut, Menu, X, Receipt, Settings, Star } from 'lucide-react';
 import { useState } from 'react';
 import ImageLogo from 'next/image';
 
@@ -13,6 +13,7 @@ const navItems = [
   { href: '/admin/categories', label: 'Categories', icon: Grid3X3 },
   { href: '/admin/gallery', label: 'Gallery', icon: Image },
   { href: '/admin/orders', label: 'Orders', icon: ShoppingCart },
+  { href: '/admin/reviews', label: 'Reviews', icon: Star },
   { href: '/admin/billing', label: 'Billing & Invoices', icon: Receipt },
   { href: '/admin/contacts', label: 'Contact Queries', icon: MessageSquare },
   { href: '/admin/settings', label: 'Company Settings', icon: Settings },
