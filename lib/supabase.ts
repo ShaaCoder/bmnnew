@@ -154,6 +154,13 @@ export type AboutContent = {
   updated_at: string;
 };
 
+export type HsnCode = {
+  id: string;
+  code: string;
+  description: string | null;
+  created_at: string;
+};
+
 export type InvoiceItem = {
   id: string;
   invoice_id: string;

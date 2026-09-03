@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { supabase, type Invoice, type InvoiceItem } from '@/lib/supabase';
-import { X, Plus, Trash2, Loader as Loader2, Save } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { supabase, type Invoice, type InvoiceItem, type HsnCode } from '@/lib/supabase';
+import { X, Plus, Trash2, Loader as Loader2, Save, ChevronDown } from 'lucide-react';
 
 type Props = {
   invoice?: Invoice;
@@ -57,9 +57,15 @@ export default function InvoiceFormModal({ invoice, items, onClose, onSaved }: P
   const [orders, setOrders] = useState<{ id: string; customer_name: string; product_name: string }[]>([]);
   const [linkedOrderId, setLinkedOrderId] = useState<string>(invoice?.order_id || '');
 
+  // HSN codes catalog
+  const [hsnCodes, setHsnCodes] = useState<HsnCode[]>([]);
+
   useEffect(() => {
     supabase.from('orders').select('id, customer_name, product_name').order('created_at', { ascending: false }).limit(50).then(({ data }) => {
       setOrders(data || []);
+    });
+    supabase.from('hsn_codes').select('*').order('code').then(({ data }) => {
+      setHsnCodes(data || []);
     });
   }, []);
 
@@ -74,6 +80,22 @@ export default function InvoiceFormModal({ invoice, items, onClose, onSaved }: P
   const removeItem = (idx: number) => setDraftItems(prev => prev.filter((_, i) => i !== idx));
   const updateItem = (idx: number, field: keyof DraftItem, value: string | number) => {
     setDraftItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: field === 'description' || field === 'hsn_sac_code' || field === 'unit' ? value : Number(value) } : it));
+  };
+
+  // Save a new HSN code to the database if it doesn't already exist
+  const saveHsnCodeIfNew = async (code: string) => {
+    const trimmed = code.trim().toUpperCase();
+    if (!trimmed) return;
+    const exists = hsnCodes.some(h => h.code.toUpperCase() === trimmed);
+    if (exists) return;
+    const { data, error } = await supabase
+      .from('hsn_codes')
+      .insert({ code: trimmed })
+      .select('*')
+      .single();
+    if (!error && data) {
+      setHsnCodes(prev => [...prev, data].sort((a, b) => a.code.localeCompare(b.code)));
+    }
   };
 
   // Calculations
@@ -96,6 +118,9 @@ export default function InvoiceFormModal({ invoice, items, onClose, onSaved }: P
 
     setSaving(true);
     try {
+      // Auto-save any new HSN codes before saving the invoice
+      await Promise.all(validItems.map(it => saveHsnCodeIfNew(it.hsn_sac_code)));
+
       if (isEdit && invoice) {
         // Update invoice
         const { error: invErr } = await supabase.from('invoices').update({
@@ -348,12 +373,12 @@ export default function InvoiceFormModal({ invoice, items, onClose, onSaved }: P
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <input
-                    type="text"
+                  <HsnCodeInput
+                    key={`hsn-${idx}`}
                     value={it.hsn_sac_code}
-                    onChange={(e) => updateItem(idx, 'hsn_sac_code', e.target.value)}
-                    placeholder="HSN/SAC"
-                    className="w-24 px-2 py-2 text-sm border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 bg-white text-center uppercase"
+                    codes={hsnCodes}
+                    onChange={(val) => updateItem(idx, 'hsn_sac_code', val)}
+                    onBlur={(val) => saveHsnCodeIfNew(val)}
                   />
                   <select
                     value={it.unit}
@@ -449,6 +474,50 @@ export default function InvoiceFormModal({ invoice, items, onClose, onSaved }: P
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// HSN code input with datalist suggestions
+function HsnCodeInput({
+  value,
+  codes,
+  onChange,
+  onBlur,
+}: {
+  value: string;
+  codes: HsnCode[];
+  onChange: (val: string) => void;
+  onBlur: (val: string) => void;
+}) {
+  const listId = useRef(`hsn-list-${Math.random().toString(36).slice(2)}`).current;
+  const [focused, setFocused] = useState(false);
+
+  const filtered = codes.filter(h =>
+    h.code.toLowerCase().includes(value.toLowerCase())
+  );
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        list={listId}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={(e) => { setFocused(false); onBlur(e.target.value); }}
+        placeholder="HSN/SAC"
+        className="w-28 px-2 py-2 text-sm border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 bg-white text-center uppercase"
+        autoComplete="off"
+      />
+      <datalist id={listId}>
+        {focused && filtered.map(h => (
+          <option key={h.id} value={h.code}>
+            {h.description ? `${h.code} - ${h.description}` : h.code}
+          </option>
+        ))}
+      </datalist>
+      <ChevronDown className="w-3 h-3 text-green-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
     </div>
   );
 }
