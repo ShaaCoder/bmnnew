@@ -51,10 +51,15 @@ export default function ImageUploader({ value, onChange, folder = 'uploads', max
     if (toUpload.length === 0) return;
     const items: UploadItem[] = toUpload.map(file => ({ id: `${Date.now()}-${Math.random()}`, file, preview: URL.createObjectURL(file), uploading: true, error: null }));
     setUploading(prev => [...prev, ...items]);
+    let accumulated = [...value];
     for (const item of items) {
       const { url, error } = await uploadFile(item.file);
-      if (url) { onChange([...value, url]); setUploading(prev => prev.filter(u => u.id !== item.id)); URL.revokeObjectURL(item.preview); }
-      else { setUploading(prev => prev.map(u => u.id === item.id ? { ...u, uploading: false, error: error || 'Upload failed' } : u)); }
+      if (url) {
+        accumulated = [...accumulated, url];
+        onChange(accumulated);
+        setUploading(prev => prev.filter(u => u.id !== item.id));
+        URL.revokeObjectURL(item.preview);
+      } else { setUploading(prev => prev.map(u => u.id === item.id ? { ...u, uploading: false, error: error || 'Upload failed' } : u)); }
     }
   }, [value, onChange, uploadFile, max]);
 
@@ -79,9 +84,7 @@ export default function ImageUploader({ value, onChange, folder = 'uploads', max
     const { url, error } = await uploadFile(item.file);
     if (url) { onChange([...value, url]); setUploading(prev => prev.filter(u => u.id !== item.id)); URL.revokeObjectURL(item.preview); }
     else { setUploading(prev => prev.map(u => u.id === item.id ? { ...u, uploading: false, error: error || 'Upload failed' } : u)); }
-  };
-
-  const isSingleMode = max === 1;
+  };  const isSingleMode = max === 1;
   const hasImage = value.length > 0 || uploading.length > 0;
 
   if (isSingleMode) {

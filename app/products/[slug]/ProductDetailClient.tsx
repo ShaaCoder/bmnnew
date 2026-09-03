@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ShoppingCart, ChevronLeft, ChevronRight, Package, Tag } from 'lucide-react';
+import { ShoppingCart, ChevronLeft, ChevronRight, Package, Tag, ZoomIn } from 'lucide-react';
 import type { Product } from '@/lib/supabase';
 import OrderModal from '@/components/OrderModal';
 import Link from 'next/link';
@@ -10,7 +10,7 @@ export default function ProductDetailClient({ product }: { product: Product & { 
   const [selectedImg, setSelectedImg] = useState(0);
   const [orderOpen, setOrderOpen] = useState(false);
 
-  const images = product.images?.length > 0 ? product.images : [];
+  const images = product.images?.filter(Boolean) ?? [];
 
   return (
     <>
@@ -26,44 +26,64 @@ export default function ProductDetailClient({ product }: { product: Product & { 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Images */}
           <div>
-            <div className="relative overflow-hidden rounded-2xl bg-green-50 aspect-square mb-4">
+            {/* Main image */}
+            <div className="relative overflow-hidden rounded-2xl bg-green-50 aspect-square mb-4 group">
               {images.length > 0 ? (
-                <img
-                  src={images[selectedImg]}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
+                <>
+                  <img
+                    src={images[selectedImg]}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                  {images.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => setSelectedImg((i) => (i - 1 + images.length) % images.length)}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 backdrop-blur rounded-full flex items-center justify-center hover:bg-white shadow-md transition"
+                        aria-label="Previous image"
+                      >
+                        <ChevronLeft className="w-5 h-5 text-green-800" />
+                      </button>
+                      <button
+                        onClick={() => setSelectedImg((i) => (i + 1) % images.length)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 backdrop-blur rounded-full flex items-center justify-center hover:bg-white shadow-md transition"
+                        aria-label="Next image"
+                      >
+                        <ChevronRight className="w-5 h-5 text-green-800" />
+                      </button>
+                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                        {images.map((_, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setSelectedImg(i)}
+                            className={`rounded-full transition-all ${i === selectedImg ? 'bg-green-600 w-6 h-2' : 'bg-white/60 w-2 h-2'}`}
+                            aria-label={`View image ${i + 1}`}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </>
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <Package className="w-16 h-16 text-green-200" />
                 </div>
               )}
-              {images.length > 1 && (
-                <>
-                  <button
-                    onClick={() => setSelectedImg((i) => (i - 1 + images.length) % images.length)}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/80 backdrop-blur rounded-full flex items-center justify-center hover:bg-white shadow-md transition"
-                  >
-                    <ChevronLeft className="w-5 h-5 text-green-800" />
-                  </button>
-                  <button
-                    onClick={() => setSelectedImg((i) => (i + 1) % images.length)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/80 backdrop-blur rounded-full flex items-center justify-center hover:bg-white shadow-md transition"
-                  >
-                    <ChevronRight className="w-5 h-5 text-green-800" />
-                  </button>
-                </>
-              )}
             </div>
+
+            {/* Thumbnail strip */}
             {images.length > 1 && (
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-wrap">
                 {images.map((img, i) => (
                   <button
                     key={i}
                     onClick={() => setSelectedImg(i)}
-                    className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${selectedImg === i ? 'border-green-500 shadow-md' : 'border-transparent opacity-70 hover:opacity-100'}`}
+                    className={`relative w-20 h-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${selectedImg === i ? 'border-green-500 shadow-md scale-105' : 'border-transparent opacity-60 hover:opacity-100'}`}
                   >
-                    <img src={img} alt="" className="w-full h-full object-cover" />
+                    <img src={img} alt={`Thumbnail ${i + 1}`} className="w-full h-full object-cover" />
+                    {selectedImg === i && (
+                      <div className="absolute inset-0 bg-green-500/10" />
+                    )}
                   </button>
                 ))}
               </div>
