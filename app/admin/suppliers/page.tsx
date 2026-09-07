@@ -102,6 +102,8 @@ export default function AdminSuppliers() {
     const profile = data.data as {
       legal_name?: string | null;
       trade_name?: string | null;
+      business_name?: string | null;
+      tradeName?: string | null;
       taxpayer_type?: string | null;
       address?: string | null;
       city?: string | null;
@@ -109,12 +111,15 @@ export default function AdminSuppliers() {
       address_details?: { building_number?: string | null; building_name?: string | null; floor?: string | null; street?: string | null; locality?: string | null; district?: string | null; city?: string | null; state?: string | null; landmark?: string | null; pincode?: string | null };
     };
     const details = profile.address_details || {};
+    const companyName = profile.trade_name || profile.business_name || profile.tradeName || profile.legal_name || '';
+    const contactName = profile.legal_name && profile.legal_name.trim().toLowerCase() !== companyName.trim().toLowerCase() ? profile.legal_name : '';
     const addressLine = [details.building_number, details.building_name, details.floor, details.street].filter(Boolean).join(', ');
     const addressLineTwo = [details.locality, details.district].filter(Boolean).join(', ');
     const registrationType = profile.taxpayer_type?.toLowerCase().includes('composition') ? 'composition' : profile.taxpayer_type?.toLowerCase().includes('regular') ? 'regular' : 'unregistered';
     setForm((current) => ({
       ...current,
-      name: profile.legal_name || profile.trade_name || current.name,
+      name: companyName || current.name,
+      contact_person: contactName || current.contact_person,
       registration_type: registrationType,
       address: addressLine || profile.address || current.address,
       address_line_2: addressLineTwo || current.address_line_2,
@@ -123,7 +128,7 @@ export default function AdminSuppliers() {
       state: details.state || current.state,
       pincode: details.pincode || profile.pincode || current.pincode,
     }));
-    setGstVerification({ status: 'verified', message: `${profile.legal_name || profile.trade_name || gstin} verified successfully.` });
+    setGstVerification({ status: 'verified', message: `${companyName || gstin} verified successfully.` });
   };
 
   const handleSave = async (event: React.FormEvent) => {
