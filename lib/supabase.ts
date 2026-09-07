@@ -205,6 +205,24 @@ export type Supplier = {
   pan: string | null;
   payment_terms: string | null;
   notes: string | null;
+  company_type: 'customer' | 'vendor' | 'customer_vendor';
+  registration_type: 'regular' | 'composition' | 'unregistered' | 'consumer';
+  address_line_2: string | null;
+  landmark: string | null;
+  city: string | null;
+  state: string | null;
+  country: string;
+  pincode: string | null;
+  opening_balance: number;
+  balance_type: 'credit' | 'debit';
+  license_no: string | null;
+  custom_field_1: string | null;
+  custom_field_2: string | null;
+  fax_no: string | null;
+  website: string | null;
+  credit_limit: number;
+  due_days: number;
+  visible_on_documents: boolean;
   created_at: string;
 };
 
