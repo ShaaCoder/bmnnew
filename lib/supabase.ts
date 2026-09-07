@@ -189,3 +189,128 @@ export type InvoiceItem = {
   total: number;
   created_at: string;
 };
+
+// ============================================================
+// Business Management System Types
+// ============================================================
+
+export type Supplier = {
+  id: string;
+  name: string;
+  contact_person: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  gstin: string | null;
+  pan: string | null;
+  payment_terms: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
+export type PurchaseOrder = {
+  id: string;
+  po_number: string;
+  supplier_id: string | null;
+  order_date: string;
+  expected_date: string | null;
+  status: 'draft' | 'received' | 'cancelled';
+  subtotal: number;
+  gst_total: number;
+  grand_total: number;
+  notes: string | null;
+  created_at: string;
+  suppliers?: Supplier | null;
+  purchase_order_items?: PurchaseOrderItem[];
+};
+
+export type PurchaseOrderItem = {
+  id: string;
+  purchase_order_id: string;
+  product_id: string | null;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  gst_percentage: number;
+  hsn_sac_code: string | null;
+  base_amount: number;
+  gst_amount: number;
+  total: number;
+  created_at: string;
+  products?: Product | null;
+};
+
+export type StockMovement = {
+  id: string;
+  product_id: string;
+  movement_type: 'purchase' | 'sale' | 'adjustment' | 'return' | 'transfer';
+  quantity: number;
+  reference_type: string | null;
+  reference_id: string | null;
+  notes: string | null;
+  created_at: string;
+  products?: Product;
+};
+
+export type OfflineSale = {
+  id: string;
+  invoice_number: string;
+  customer_name: string;
+  customer_phone: string | null;
+  customer_email: string | null;
+  customer_address: string | null;
+  customer_gst: string | null;
+  subtotal: number;
+  gst_total: number;
+  grand_total: number;
+  payment_status: 'unpaid' | 'partial' | 'paid';
+  amount_paid: number;
+  sale_date: string;
+  notes: string | null;
+  created_at: string;
+  offline_sale_items?: OfflineSaleItem[];
+};
+
+export type OfflineSaleItem = {
+  id: string;
+  offline_sale_id: string;
+  product_id: string | null;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  gst_percentage: number;
+  base_amount: number;
+  gst_amount: number;
+  total: number;
+  created_at: string;
+  products?: Product | null;
+};
+
+export type Expense = {
+  id: string;
+  category: 'rent' | 'salaries' | 'utilities' | 'marketing' | 'purchasing' | 'logistics' | 'maintenance' | 'other';
+  description: string;
+  amount: number;
+  gst_amount: number;
+  total_amount: number;
+  payment_mode: 'cash' | 'upi' | 'bank' | 'cheque' | 'card';
+  paid_to: string | null;
+  expense_date: string;
+  receipt_url: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
+export type Payment = {
+  id: string;
+  payment_type: 'receivable' | 'payable';
+  party_name: string;
+  reference_type: string | null;
+  reference_id: string | null;
+  amount: number;
+  payment_mode: 'cash' | 'upi' | 'bank' | 'cheque' | 'card';
+  payment_date: string;
+  transaction_id: string | null;
+  notes: string | null;
+  created_at: string;
+};

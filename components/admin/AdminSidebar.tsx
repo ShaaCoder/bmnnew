@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAdmin } from '@/lib/admin-auth';
-import { LayoutDashboard, Package, Grid3x3 as Grid3X3, Image, MessageSquare, ShoppingCart, LogOut, Menu, X, Receipt, Settings, Star } from 'lucide-react';
+import { LayoutDashboard, Package, Grid3x3 as Grid3X3, Image, MessageSquare, ShoppingCart, LogOut, Menu, X, Receipt, Settings, Star, Truck, Warehouse, Wallet, CreditCard, TrendingUp, BarChart3 } from 'lucide-react';
 import { useState } from 'react';
 import ImageLogo from 'next/image';
 
@@ -12,8 +12,15 @@ const navItems = [
   { href: '/admin/products', label: 'Products', icon: Package },
   { href: '/admin/categories', label: 'Categories', icon: Grid3X3 },
   { href: '/admin/gallery', label: 'Gallery', icon: Image },
-  { href: '/admin/orders', label: 'Orders', icon: ShoppingCart },
+  { href: '/admin/orders', label: 'Online Orders', icon: ShoppingCart },
+  { href: '/admin/offline-sales', label: 'Offline Sales', icon: Receipt },
   { href: '/admin/reviews', label: 'Reviews', icon: Star },
+  { href: '/admin/suppliers', label: 'Suppliers', icon: Truck },
+  { href: '/admin/purchases', label: 'Purchase Orders', icon: Package },
+  { href: '/admin/stock', label: 'Central Stock', icon: Warehouse },
+  { href: '/admin/expenses', label: 'Expenses', icon: Wallet },
+  { href: '/admin/payments', label: 'Payments', icon: CreditCard },
+  { href: '/admin/analytics', label: 'P&L & Analytics', icon: BarChart3 },
   { href: '/admin/billing', label: 'Billing & Invoices', icon: Receipt },
   { href: '/admin/contacts', label: 'Contact Queries', icon: MessageSquare },
   { href: '/admin/settings', label: 'Company Settings', icon: Settings },
