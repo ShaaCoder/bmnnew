@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase, type Invoice, type InvoiceItem, type HsnCode } from '@/lib/supabase';
-import { X, Plus, Trash2, Loader as Loader2, Save, ChevronDown } from 'lucide-react';
+import { X, Plus, Trash2, Loader as Loader2, Save, ChevronDown, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 type Props = {
   invoice?: Invoice;
@@ -33,6 +33,8 @@ export default function InvoiceFormModal({ invoice, items, onClose, onSaved }: P
   const [customerPhone, setCustomerPhone] = useState(invoice?.customer_phone || '');
   const [customerAddress, setCustomerAddress] = useState(invoice?.customer_address || '');
   const [customerGst, setCustomerGst] = useState(invoice?.customer_gst || '');
+  const [gstVerification, setGstVerification] = useState<{ status: 'verified' | 'error'; message: string } | null>(null);
+  const [verifyingGst, setVerifyingGst] = useState(false);
   const [customerPan, setCustomerPan] = useState(invoice?.customer_pan || '');
   const [placeOfSupply, setPlaceOfSupply] = useState(invoice?.place_of_supply || '');
   const [invoiceDate, setInvoiceDate] = useState(invoice?.invoice_date || new Date().toISOString().slice(0, 10));
@@ -74,6 +76,34 @@ export default function InvoiceFormModal({ invoice, items, onClose, onSaved }: P
     if (!orderId) return;
     const order = orders.find(o => o.id === orderId);
     if (order && !customerName) setCustomerName(order.customer_name);
+  };
+
+  const verifyCustomerGstin = async () => {
+    const gstin = customerGst.toUpperCase().trim();
+    setCustomerGst(gstin);
+    setGstVerification(null);
+
+    if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gstin)) {
+      setGstVerification({ status: 'error', message: 'Enter a valid 15-character GSTIN.' });
+      return;
+    }
+
+    setVerifyingGst(true);
+    const { data, error: invokeError } = await supabase.functions.invoke('verify-gstin', {
+      body: { gstin, include_profile: true },
+    });
+    setVerifyingGst(false);
+
+    if (invokeError || !data?.success) {
+      setGstVerification({ status: 'error', message: data?.error || invokeError?.message || 'GSTIN verification failed.' });
+      return;
+    }
+
+    const profile = data.data;
+    setGstVerification({ status: 'verified', message: `${profile?.legal_name || profile?.trade_name || 'GSTIN'} verified successfully.` });
+    if (profile?.legal_name && !customerName.trim()) setCustomerName(profile.legal_name);
+    if (profile?.address && !customerAddress.trim()) setCustomerAddress(profile.address);
+    if (profile?.state_code && !placeOfSupply.trim()) setPlaceOfSupply(`${profile.state_code} - ${profile.address_details?.state || profile.city || 'Registered State'}`);
   };
 
   const addItem = () => setDraftItems(prev => [...prev, { description: '', hsn_sac_code: '', unit: 'NOS', quantity: 1, unit_price: 0, gst_percentage: 18 }]);
@@ -288,13 +318,31 @@ export default function InvoiceFormModal({ invoice, items, onClose, onSaved }: P
             </div>
             <div>
               <label className="text-xs font-medium text-green-600 uppercase tracking-wide">Customer GSTIN</label>
-              <input
-                type="text"
-                value={customerGst}
-                onChange={(e) => setCustomerGst(e.target.value)}
-                className="w-full mt-1.5 px-3 py-2.5 text-sm border border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-400 uppercase"
-                placeholder="27ABCDE1234F1Z5"
-              />
+              <div className="flex gap-2 mt-1.5">
+                <input
+                  type="text"
+                  value={customerGst}
+                  onChange={(e) => { setCustomerGst(e.target.value.toUpperCase()); setGstVerification(null); }}
+                  className="min-w-0 flex-1 px-3 py-2.5 text-sm border border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-400 uppercase"
+                  placeholder="27ABCDE1234F1Z5"
+                  maxLength={15}
+                />
+                <button
+                  type="button"
+                  onClick={verifyCustomerGstin}
+                  disabled={verifyingGst || !customerGst.trim()}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium text-green-700 border border-green-200 rounded-xl hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {verifyingGst ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                  {verifyingGst ? 'Checking' : 'Verify'}
+                </button>
+              </div>
+              {gstVerification && (
+                <div className={`flex items-start gap-1.5 mt-2 text-xs ${gstVerification.status === 'verified' ? 'text-green-700' : 'text-red-600'}`}>
+                  {gstVerification.status === 'verified' && <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />}
+                  <span>{gstVerification.message}</span>
+                </div>
+              )}
             </div>
             <div>
               <label className="text-xs font-medium text-green-600 uppercase tracking-wide">Customer PAN</label>

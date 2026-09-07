@@ -1,0 +1,2 @@
+[functions.verify-gstin]
+verify_jwt = false
