@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { supabase, type Invoice, type InvoiceItem, type HsnCode } from '@/lib/supabase';
-import { X, Plus, Trash2, Loader as Loader2, Save, ChevronDown, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { supabase, type Invoice, type InvoiceItem, type HsnCode, type Supplier } from '@/lib/supabase';
+import { X, Plus, Trash2, Loader as Loader2, Save, ChevronDown, ShieldCheck, CheckCircle2, Search } from 'lucide-react';
 
 type Props = {
   invoice?: Invoice;
@@ -41,6 +41,12 @@ export default function InvoiceFormModal({ invoice, items, onClose, onSaved }: P
   const [dueDate, setDueDate] = useState(invoice?.due_date || '');
   const [notes, setNotes] = useState(invoice?.notes || '');
 
+  // Supplier picker
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [supplierSearch, setSupplierSearch] = useState('');
+  const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+
   const [draftItems, setDraftItems] = useState<DraftItem[]>(
     items && items.length > 0
       ? items.map(it => ({
@@ -69,7 +75,30 @@ export default function InvoiceFormModal({ invoice, items, onClose, onSaved }: P
     supabase.from('hsn_codes').select('*').order('code').then(({ data }) => {
       setHsnCodes(data || []);
     });
+    supabase.from('suppliers').select('*').order('name').then(({ data }) => {
+      setSuppliers((data as Supplier[]) || []);
+    });
   }, []);
+
+  const filteredSuppliers = suppliers.filter(s => {
+    const q = supplierSearch.toLowerCase();
+    return !q || s.name.toLowerCase().includes(q) || (s.gstin || '').toLowerCase().includes(q) || (s.contact_person || '').toLowerCase().includes(q);
+  });
+
+  const handleSelectSupplier = (supplier: Supplier) => {
+    setSelectedSupplier(supplier);
+    setSupplierSearch(supplier.name);
+    setShowSupplierDropdown(false);
+    setCustomerName(supplier.name);
+    setCustomerEmail(supplier.email || '');
+    setCustomerPhone(supplier.phone || '');
+    setCustomerGst(supplier.gstin || '');
+    setCustomerPan(supplier.pan || '');
+    const fullAddress = [supplier.address, supplier.address_line_2, supplier.landmark, supplier.city, supplier.state, supplier.country, supplier.pincode].filter(Boolean).join(', ');
+    setCustomerAddress(fullAddress);
+    setPlaceOfSupply(supplier.state ? `${supplier.state}` : '');
+    setGstVerification(null);
+  };
 
   const handleLinkOrder = (orderId: string) => {
     setLinkedOrderId(orderId);
@@ -165,6 +194,7 @@ export default function InvoiceFormModal({ invoice, items, onClose, onSaved }: P
           due_date: dueDate || null,
           notes: notes || null,
           order_id: linkedOrderId || null,
+          supplier_id: selectedSupplier?.id || null,
           subtotal,
           gst_total: gstTotal,
           grand_total: grandTotal,
@@ -201,6 +231,7 @@ export default function InvoiceFormModal({ invoice, items, onClose, onSaved }: P
         const { data: invData, error: invErr } = await supabase.from('invoices').insert({
           invoice_number: invoiceNumber,
           order_id: linkedOrderId || null,
+          supplier_id: selectedSupplier?.id || null,
           customer_name: customerName,
           customer_email: customerEmail,
           customer_phone: customerPhone || null,
@@ -266,6 +297,46 @@ export default function InvoiceFormModal({ invoice, items, onClose, onSaved }: P
               {error}
             </div>
           )}
+
+          {/* M/S. - Supplier picker */}
+          <div className="relative">
+            <label className="text-xs font-medium text-green-600 uppercase tracking-wide">M/S. (Supplier / Customer)</label>
+            <div className="relative mt-1.5">
+              <Search className="w-4 h-4 text-green-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={supplierSearch}
+                onChange={(e) => { setSupplierSearch(e.target.value); setShowSupplierDropdown(true); setSelectedSupplier(null); }}
+                onFocus={() => setShowSupplierDropdown(true)}
+                onBlur={() => setTimeout(() => setShowSupplierDropdown(false), 200)}
+                className="w-full pl-10 pr-3 py-2.5 text-sm border border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-400 bg-green-50"
+                placeholder="Search saved supplier / customer by name or GSTIN..."
+                autoComplete="off"
+              />
+              {selectedSupplier && <CheckCircle2 className="w-4 h-4 text-green-600 absolute right-3 top-1/2 -translate-y-1/2" />}
+            </div>
+            {showSupplierDropdown && filteredSuppliers.length > 0 && (
+              <div className="absolute z-10 mt-1 w-full bg-white border border-green-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+                {filteredSuppliers.map(s => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleSelectSupplier(s)}
+                    className="w-full text-left px-4 py-2.5 hover:bg-green-50 border-b border-green-50 last:border-0"
+                  >
+                    <p className="text-sm font-medium text-green-900">{s.name}</p>
+                    <p className="text-xs text-green-500">{s.gstin || 'No GSTIN'}{s.city ? ` · ${s.city}` : ''}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+            {showSupplierDropdown && filteredSuppliers.length === 0 && supplierSearch && (
+              <div className="absolute z-10 mt-1 w-full bg-white border border-green-200 rounded-xl shadow-lg p-4 text-center text-sm text-green-500">
+                No matching supplier found. You can still enter details manually below.
+              </div>
+            )}
+          </div>
 
           {/* Link to order */}
           {orders.length > 0 && (

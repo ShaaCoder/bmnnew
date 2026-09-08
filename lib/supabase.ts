@@ -106,6 +106,7 @@ export type Invoice = {
   id: string;
   invoice_number: string;
   order_id: string | null;
+  supplier_id: string | null;
   customer_name: string;
   customer_email: string;
   customer_phone: string | null;
