@@ -469,6 +469,7 @@ ${invoiceRef.current.innerHTML}
                 <div className="bill-label text-[9px] font-bold text-green-600 uppercase tracking-wider mb-1">Bill To</div>
                 <div className="bill-name text-sm font-bold text-green-900">{invoice.customer_name}</div>
                 <div className="bill-detail text-[10px] text-gray-600 leading-relaxed mt-0.5">
+                  {invoice.contact_person && <div>Contact: <span className="font-semibold">{invoice.contact_person}</span></div>}
                   {invoice.customer_address && <div>{invoice.customer_address}</div>}
                   {invoice.customer_phone && <div>Ph: {invoice.customer_phone}</div>}
                   {invoice.customer_email && <div>{invoice.customer_email}</div>}
@@ -480,7 +481,13 @@ ${invoiceRef.current.innerHTML}
                 <div className="bill-label text-[9px] font-bold text-green-600 uppercase tracking-wider mb-1">Details</div>
                 <div className="bill-detail text-[10px] text-gray-600 leading-relaxed">
                   <div>Place of Supply: <span className="font-semibold text-green-900">{invoice.place_of_supply || '—'}</span></div>
-                  <div className="mt-2">Payment Terms: <span className="font-semibold">{invoice.due_date ? 'Credit' : 'Advance'}</span></div>
+                  <div>Payment Type: <span className="font-semibold text-green-900">{invoice.payment_type || 'Credit'}</span></div>
+                  <div>Reverse Charge: <span className="font-semibold text-green-900">{invoice.reverse_charge || 'No'}</span></div>
+                  {invoice.delivery_mode && <div>Delivery: <span className="font-semibold text-green-900">{invoice.delivery_mode}</span></div>}
+                  {invoice.challan_no && <div>Challan: <span className="font-semibold text-green-900">{invoice.challan_no}{invoice.challan_date ? ` · ${new Date(invoice.challan_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}` : ''}</span></div>}
+                  {invoice.po_no && <div>PO: <span className="font-semibold text-green-900">{invoice.po_no}{invoice.po_date ? ` · ${new Date(invoice.po_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}` : ''}</span></div>}
+                  {invoice.lr_no && <div>LR/Transport: <span className="font-semibold text-green-900">{invoice.lr_no}</span></div>}
+                  {invoice.eway_no && <div>E-Way: <span className="font-semibold text-green-900">{invoice.eway_no}</span></div>}
                 </div>
               </div>
             </div>
@@ -512,7 +519,10 @@ ${invoiceRef.current.innerHTML}
                   return (
                     <tr key={it.id} className="border-b border-gray-200">
                       <td className="desc text-left text-[11px] px-2 py-2 text-center">{idx + 1}</td>
-                      <td className="desc text-left text-[11px] px-2 py-2">{it.description}</td>
+                      <td className="desc text-left text-[11px] px-2 py-2">
+                        {it.description}
+                        {it.item_note && <div className="text-[9px] text-gray-400 mt-0.5">{it.item_note}</div>}
+                      </td>
                       <td className="text-[11px] px-1 py-2 text-center">{it.hsn_sac_code || '—'}</td>
                       <td className="text-[11px] px-1 py-2 text-center">{it.unit || 'NOS'}</td>
                       <td className="text-[11px] px-1 py-2 text-center">{fmt0(it.quantity)}</td>
@@ -541,6 +551,12 @@ ${invoiceRef.current.innerHTML}
                       <td className="label text-left text-[11px] text-gray-600 border-none px-3 py-1">Subtotal</td>
                       <td className="text-right text-[11px] border-none px-3 py-1">&#8377;{fmt(Number(invoice.subtotal))}</td>
                     </tr>
+                    {Number(invoice.discount_value) > 0 && (
+                      <tr>
+                        <td className="label text-left text-[11px] text-gray-600 border-none px-3 py-1">Discount {invoice.discount_type === 'percentage' ? `(${invoice.discount_value}%)` : ''}</td>
+                        <td className="text-right text-[11px] border-none px-3 py-1">- &#8377;{fmt(Number(invoice.discount_value))}</td>
+                      </tr>
+                    )}
                     <tr>
                       <td className="label text-left text-[11px] text-gray-600 border-none px-3 py-1">CGST</td>
                       <td className="text-right text-[11px] border-none px-3 py-1">&#8377;{fmt(Number(invoice.gst_total) / 2)}</td>
@@ -549,6 +565,18 @@ ${invoiceRef.current.innerHTML}
                       <td className="label text-left text-[11px] text-gray-600 border-none px-3 py-1">SGST</td>
                       <td className="text-right text-[11px] border-none px-3 py-1">&#8377;{fmt(Number(invoice.gst_total) / 2)}</td>
                     </tr>
+                    {Number(invoice.tcs_value) > 0 && (
+                      <tr>
+                        <td className="label text-left text-[11px] text-gray-600 border-none px-3 py-1">TCS {invoice.tcs_type === 'percentage' ? `(${invoice.tcs_value}%)` : ''}</td>
+                        <td className="text-right text-[11px] border-none px-3 py-1">&#8377;{fmt(Number(invoice.tcs_type === 'percentage' ? (Number(invoice.subtotal) * Number(invoice.tcs_value)) / 100 : invoice.tcs_value))}</td>
+                      </tr>
+                    )}
+                    {Number(invoice.round_off) !== 0 && (
+                      <tr>
+                        <td className="label text-left text-[11px] text-gray-600 border-none px-3 py-1">Round Off</td>
+                        <td className="text-right text-[11px] border-none px-3 py-1">&#8377;{fmt(Number(invoice.round_off))}</td>
+                      </tr>
+                    )}
                     <tr className="total">
                       <td className="text-left text-sm font-bold text-green-900 border-t-2 border-green-900 border-none px-3 pt-2 py-1">Grand Total</td>
                       <td className="text-right text-sm font-bold text-green-900 border-t-2 border-green-900 border-none px-3 pt-2 py-1">&#8377;{fmt(Number(invoice.grand_total))}</td>
@@ -563,7 +591,12 @@ ${invoiceRef.current.innerHTML}
               <div className="bank-box flex-1 px-4 py-3 bg-green-50">
                 <div className="bank-label text-[9px] font-bold text-green-600 uppercase tracking-wider mb-1.5">Bank Details</div>
                 <div className="bank-detail text-[10px] text-gray-600 leading-relaxed">
-                  {bankName && <div>Bank: <span className="font-semibold text-green-900">{bankName}</span></div>}
+                  {invoice.bank_details && (
+                  <div className="mb-2 text-[10px] text-gray-600 leading-relaxed">
+                    <span className="font-bold text-green-600">Invoice Bank Details:</span> {invoice.bank_details}
+                  </div>
+                )}
+                {bankName && <div>Bank: <span className="font-semibold text-green-900">{bankName}</span></div>}
                   {accountNumber && <div>A/C: <span className="font-semibold text-green-900">{accountNumber}</span></div>}
                   {ifscCode && <div>IFSC: <span className="font-semibold text-green-900">{ifscCode}</span></div>}
                   {branch && <div>Branch: <span className="font-semibold text-green-900">{branch}</span></div>}
@@ -601,6 +634,18 @@ ${invoiceRef.current.innerHTML}
                   <div>
                     <div className="font-bold text-green-600 uppercase tracking-wider text-[9px] mb-1">Notes</div>
                     <div>{invoice.notes}</div>
+                  </div>
+                )}
+                {invoice.terms_title && (
+                  <div className="mt-3">
+                    <div className="font-bold text-green-600 uppercase tracking-wider text-[9px] mb-1">{invoice.terms_title}</div>
+                    <div className="text-[10px]">{invoice.terms_detail}</div>
+                  </div>
+                )}
+                {invoice.ship_to && (
+                  <div className="mt-3">
+                    <div className="font-bold text-green-600 uppercase tracking-wider text-[9px] mb-1">Ship To</div>
+                    <div className="text-[10px]">{invoice.ship_to}</div>
                   </div>
                 )}
                 <div className="mt-3">This is a computer-generated invoice and does not require a physical signature.</div>
