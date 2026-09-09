@@ -25,6 +25,12 @@ export type Product = {
   images: string[];
   stock: number;
   featured: boolean;
+  barcode: string | null;
+  sku: string | null;
+  uom: string;
+  cost_price: number;
+  min_stock: number;
+  is_offline: boolean;
   created_at: string;
   categories?: Category;
 };

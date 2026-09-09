@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAdmin } from '@/lib/admin-auth';
-import { LayoutDashboard, Package, Grid3x3 as Grid3X3, Image, MessageSquare, ShoppingCart, LogOut, Menu, X, Receipt, Settings, Star, Truck, Warehouse, Wallet, CreditCard, TrendingUp, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Package, Grid3x3 as Grid3X3, Image, MessageSquare, ShoppingCart, LogOut, Menu, X, Receipt, Settings, Star, Truck, Warehouse, Wallet, CreditCard, TrendingUp, BarChart3, Boxes } from 'lucide-react';
 import { useState } from 'react';
 import ImageLogo from 'next/image';
 
@@ -17,6 +17,7 @@ const navItems = [
   { href: '/admin/reviews', label: 'Reviews', icon: Star },
   { href: '/admin/suppliers', label: 'Suppliers', icon: Truck },
   { href: '/admin/purchases', label: 'Purchase Orders', icon: Package },
+  { href: '/admin/inventory', label: 'Inventory', icon: Boxes },
   { href: '/admin/stock', label: 'Central Stock', icon: Warehouse },
   { href: '/admin/expenses', label: 'Expenses', icon: Wallet },
   { href: '/admin/payments', label: 'Payments', icon: CreditCard },
