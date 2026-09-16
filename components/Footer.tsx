@@ -6,96 +6,259 @@ import {
   MapPin,
   Instagram,
   Youtube,
+  Facebook,
   Globe,
   Star,
+  MessageCircle,
+  Linkedin,
+  Send,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default async function Footer() {
-  const { data: settings } = await supabase.from('company_settings').select('*').maybeSingle();
-  const companyName = settings?.company_name || 'Bharat Advance';
-  const address = settings?.address || '123 Business Avenue, Commercial District, City — 400001';
-  const phone = settings?.phone || '+91 98765 43210';
-  const email = settings?.email || 'info@bharatadvance.com';
-  const logoUrl = settings?.logo_url || '/bmn_logo.jpeg';
-const socialLinks = {
-  indiaMart: 'https://www.indiamart.com/bmnenterprises-newdelhi/',
-  youtube: 'https://www.youtube.com/@BMNENTERPRISES',
-  google: 'https://share.google/4eVadrdCg29ARuHSA',
-  instagram: 'https://www.instagram.com/nitin__rathore_0987',
-};
+  // ==========================================
+  // FETCH COMPANY SETTINGS
+  // ==========================================
+  const { data: settings } = await supabase
+    .from('company_settings')
+    .select('*')
+    .limit(1)
+    .maybeSingle();
 
-const businessPhone = '9582139182';
-const businessEmail = 'bharatadvance96@gmail.com';
+  // ==========================================
+  // COMPANY INFORMATION
+  // ==========================================
+  const companyName =
+    settings?.company_name || 'B M N Enterprises';
+
+  const address =
+    settings?.address ||
+    'Bharat Advance House, I-107 Vijay Vihar Phase II, Vijay Vihar, Sector 4, Rohini, New Delhi, 110085';
+
+  const logoUrl =
+    settings?.logo_url || '/bmn_logo.jpeg';
+
+  // ==========================================
+  // MULTIPLE PHONE NUMBERS
+  // ==========================================
+  const phoneNumbers: string[] = Array.isArray(settings?.phone_numbers)
+    ? settings.phone_numbers.filter(
+        (phone: string) => phone?.trim()
+      )
+    : [];
+
+  // ==========================================
+  // MULTIPLE EMAILS
+  // ==========================================
+  const emails: string[] = Array.isArray(settings?.emails)
+    ? settings.emails.filter(
+        (email: string) => email?.trim()
+      )
+    : [];
+
+  // ==========================================
+  // FETCH SOCIAL LINKS
+  // ==========================================
+  let socialLinks: any[] = [];
+
+  if (settings?.id) {
+    const { data: socialData } = await supabase
+      .from('social_links')
+      .select('*')
+      .eq('company_id', settings.id)
+      .eq('is_active', true)
+      .order('display_order', { ascending: true });
+
+    socialLinks = (socialData || []).filter(
+      (social) => social.url?.trim()
+    );
+  }
+
+  // ==========================================
+  // SOCIAL ICON FUNCTION
+  // ==========================================
+  const getSocialIcon = (platform: string) => {
+    const value = platform.toLowerCase();
+
+    if (value.includes('instagram')) {
+      return <Instagram className="w-5 h-5" />;
+    }
+
+    if (value.includes('youtube')) {
+      return <Youtube className="w-5 h-5" />;
+    }
+
+    if (value.includes('facebook')) {
+      return <Facebook className="w-5 h-5" />;
+    }
+
+    if (value.includes('linkedin')) {
+      return <Linkedin className="w-5 h-5" />;
+    }
+
+    if (value.includes('whatsapp')) {
+      return <MessageCircle className="w-5 h-5" />;
+    }
+
+    if (
+      value.includes('telegram') ||
+      value.includes('send')
+    ) {
+      return <Send className="w-5 h-5" />;
+    }
+
+    if (
+      value.includes('google') ||
+      value.includes('business')
+    ) {
+      return <Star className="w-5 h-5" />;
+    }
+
+    return <Globe className="w-5 h-5" />;
+  };
+
+  // ==========================================
+  // SOCIAL HOVER COLORS
+  // ==========================================
+  const getSocialHoverClass = (platform: string) => {
+    const value = platform.toLowerCase();
+
+    if (value.includes('youtube')) {
+      return 'hover:bg-red-600';
+    }
+
+    if (value.includes('instagram')) {
+      return 'hover:bg-pink-600';
+    }
+
+    if (value.includes('facebook')) {
+      return 'hover:bg-blue-600';
+    }
+
+    if (value.includes('linkedin')) {
+      return 'hover:bg-blue-700';
+    }
+
+    if (value.includes('whatsapp')) {
+      return 'hover:bg-green-600';
+    }
+
+    if (value.includes('google')) {
+      return 'hover:bg-yellow-500';
+    }
+
+    if (value.includes('telegram')) {
+      return 'hover:bg-sky-500';
+    }
+
+    return 'hover:bg-green-600';
+  };
+
   return (
     <footer className="bg-green-950 text-green-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+
+        {/* ==========================================
+            MAIN FOOTER GRID
+        ========================================== */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+
+          {/* ========================================
+              COMPANY
+          ======================================== */}
           <div className="md:col-span-2">
-            <Link href="/" className="flex items-center gap-3 mb-4">
-              <Image src={logoUrl} alt={companyName} width={44} height={44} className="rounded-full object-cover" unoptimized />
-              <span className="font-display font-bold text-white text-xl">{companyName}</span>
+
+            <Link
+              href="/"
+              className="flex items-center gap-3 mb-4"
+            >
+              <Image
+                src={logoUrl}
+                alt={companyName}
+                width={44}
+                height={44}
+                className="rounded-full object-cover"
+                unoptimized
+              />
+
+              <span className="font-display font-bold text-white text-xl">
+                {companyName}
+              </span>
             </Link>
+
             <p className="text-green-300 text-sm leading-relaxed max-w-xs">
-              Your trusted partner for quality products. We bring the best of every category right to your doorstep.
+              Your trusted partner for quality products.
+              We bring the best of every category right to
+              your doorstep.
             </p>
-           <div className="flex flex-wrap gap-3 mt-6">
 
-  <a
-    href={socialLinks.indiaMart}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="w-10 h-10 rounded-full bg-green-900 hover:bg-green-600 flex items-center justify-center transition"
-    title="IndiaMART"
-  >
-    <Globe className="w-5 h-5" />
-  </a>
+            {/* ========================================
+                SOCIAL MEDIA
+                LOADED FROM DATABASE
+            ======================================== */}
+            {socialLinks.length > 0 && (
+              <div className="flex flex-wrap gap-3 mt-6">
 
-  <a
-    href={socialLinks.youtube}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="w-10 h-10 rounded-full bg-green-900 hover:bg-red-600 flex items-center justify-center transition"
-    title="YouTube"
-  >
-    <Youtube className="w-5 h-5" />
-  </a>
+                {socialLinks.map((social) => (
+                  <a
+                    key={social.id}
+                    href={social.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`w-10 h-10 rounded-full bg-green-900 ${getSocialHoverClass(
+                      social.platform
+                    )} flex items-center justify-center transition`}
+                    title={
+                      social.label ||
+                      social.platform
+                    }
+                    aria-label={
+                      social.label ||
+                      social.platform
+                    }
+                  >
+                    {getSocialIcon(social.platform)}
+                  </a>
+                ))}
 
-  <a
-    href={socialLinks.instagram}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="w-10 h-10 rounded-full bg-green-900 hover:bg-pink-600 flex items-center justify-center transition"
-    title="Instagram"
-  >
-    <Instagram className="w-5 h-5" />
-  </a>
+              </div>
+            )}
 
-  <a
-    href={socialLinks.google}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="w-10 h-10 rounded-full bg-green-900 hover:bg-yellow-500 flex items-center justify-center transition"
-    title="Google Business"
-  >
-    <Star className="w-5 h-5" />
-  </a>
-
-</div>
           </div>
 
+          {/* ==========================================
+              QUICK LINKS
+          ========================================== */}
           <div>
-            <h4 className="font-display text-white font-semibold mb-4">Quick Links</h4>
+            <h4 className="font-display text-white font-semibold mb-4">
+              Quick Links
+            </h4>
+
             <ul className="space-y-2">
               {[
                 { href: '/', label: 'Home' },
-                { href: '/products', label: 'Products' },
-                { href: '/gallery', label: 'Gallery' },
-                { href: '/about', label: 'About Us' },
-                { href: '/contact', label: 'Contact Us' },
+                {
+                  href: '/products',
+                  label: 'Products',
+                },
+                {
+                  href: '/gallery',
+                  label: 'Gallery',
+                },
+                {
+                  href: '/about',
+                  label: 'About Us',
+                },
+                {
+                  href: '/contact',
+                  label: 'Contact Us',
+                },
               ].map((link) => (
                 <li key={link.href}>
-                  <Link href={link.href} className="text-sm text-green-300 hover:text-green-400 transition-colors duration-200">
+                  <Link
+                    href={link.href}
+                    className="text-sm text-green-300 hover:text-green-400 transition-colors duration-200"
+                  >
                     {link.label}
                   </Link>
                 </li>
@@ -103,39 +266,117 @@ const businessEmail = 'bharatadvance96@gmail.com';
             </ul>
           </div>
 
+          {/* ==========================================
+              CONTACT
+          ========================================== */}
           <div>
-            <h4 className="font-display text-white font-semibold mb-4">Contact</h4>
-            <ul className="space-y-3">
+            <h4 className="font-display text-white font-semibold mb-4">
+              Contact
+            </h4>
+
+            <ul className="space-y-4">
+
+              {/* ADDRESS */}
               <li className="flex items-start gap-2 text-sm text-green-300">
                 <MapPin className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                <span>{address}</span>
+
+                <span>
+                  {address}
+                </span>
               </li>
-              <li className="flex items-center gap-2 text-sm text-green-300">
-                <Phone className="w-4 h-4 text-green-500 shrink-0" />
-                <a href={`tel:${phone}`} className="hover:text-green-400 transition-colors">{phone}</a>
-              </li>
-              <li className="flex items-center gap-2 text-sm text-green-300">
-                <Mail className="w-4 h-4 text-green-500 shrink-0" />
-                <a href={`mailto:${email}`} className="hover:text-green-400 transition-colors">{email}</a>
-              </li>
+
+              {/* ======================================
+                  ALL PHONE NUMBERS
+              ====================================== */}
+              {phoneNumbers.length > 0 && (
+                <li>
+                  <div className="flex items-start gap-2">
+                    <Phone className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+
+                    <div className="flex flex-col gap-1">
+                      {phoneNumbers.map(
+                        (phone, index) => (
+                          <a
+                            key={`${phone}-${index}`}
+                            href={`tel:${phone.replace(
+                              /[^0-9+]/g,
+                              ''
+                            )}`}
+                            className="text-sm text-green-300 hover:text-green-400 transition-colors"
+                          >
+                            {phone}
+                          </a>
+                        )
+                      )}
+                    </div>
+                  </div>
+                </li>
+              )}
+
+              {/* ======================================
+                  ALL EMAILS
+              ====================================== */}
+              {emails.length > 0 && (
+                <li>
+                  <div className="flex items-start gap-2">
+                    <Mail className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+
+                    <div className="flex flex-col gap-1">
+                      {emails.map(
+                        (email, index) => (
+                          <a
+                            key={`${email}-${index}`}
+                            href={`mailto:${email}`}
+                            className="text-sm text-green-300 hover:text-green-400 transition-colors break-all"
+                          >
+                            {email}
+                          </a>
+                        )
+                      )}
+                    </div>
+                  </div>
+                </li>
+              )}
+
             </ul>
           </div>
+
         </div>
 
+        {/* ==========================================
+            BOTTOM FOOTER
+        ========================================== */}
         <div className="border-t border-green-900 mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+
           <p className="text-xs text-green-400">
-            &copy; {new Date().getFullYear()} {companyName}. All rights reserved.
+            &copy; {new Date().getFullYear()} {companyName}.
+            All rights reserved.
           </p>
+
           <div className="flex items-center gap-4">
-            <Link href="/privacy-policy" className="text-xs text-green-400 hover:text-green-300 transition-colors">
+
+            <Link
+              href="/privacy-policy"
+              className="text-xs text-green-400 hover:text-green-300 transition-colors"
+            >
               Privacy Policy
             </Link>
-            <span className="text-green-700 text-xs">&middot;</span>
-            <Link href="/admin" className="text-xs text-green-500 hover:text-green-300 transition-colors">
+
+            <span className="text-green-700 text-xs">
+              &middot;
+            </span>
+
+            <Link
+              href="/admin"
+              className="text-xs text-green-500 hover:text-green-300 transition-colors"
+            >
               Admin Panel
             </Link>
+
           </div>
+
         </div>
+
       </div>
     </footer>
   );

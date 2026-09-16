@@ -76,35 +76,44 @@ export type CompanySettings = {
 
   company_name: string;
   tagline: string | null;
-
   address: string | null;
 
-  phone: string | null;
-
-  email: string | null;
+  phone_numbers: string[];
+  emails: string[];
 
   gstin: string | null;
-
   pan: string | null;
 
   bank_name: string | null;
-
   account_number: string | null;
-
   ifsc_code: string | null;
-
   branch: string | null;
-
   upi_id: string | null;
 
   logo_url: string | null;
-
   signature_url: string | null;
-
   qr_code_url: string | null;
 
   created_at: string;
+  updated_at: string;
 
+  social_links?: SocialLink[];
+};
+
+export type SocialLink = {
+  id: string;
+  company_id: string;
+
+  platform: string;
+  label: string | null;
+  url: string;
+
+  qr_code_url: string | null;
+
+  display_order: number;
+  is_active: boolean;
+
+  created_at: string;
   updated_at: string;
 };
 

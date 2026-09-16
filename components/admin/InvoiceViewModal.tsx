@@ -1,18 +1,64 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
-import { type Invoice, type InvoiceItem, type CompanySettings, supabase } from '@/lib/supabase';
-import { X, Printer } from 'lucide-react';
+
+import {
+  type Invoice,
+  type InvoiceItem,
+  type CompanySettings,
+  type SocialLink,
+  supabase,
+} from '@/lib/supabase';
+
+import {
+  X,
+  Printer,
+} from 'lucide-react';
+
 import Image from 'next/image';
-import QRCode from "qrcode";
+import QRCode from 'qrcode';
+
 type Props = {
   invoice: Invoice;
   items: InvoiceItem[];
   onClose: () => void;
 };
 
-const fmt = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmt0 = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+/* =========================================================
+   FORMATTERS
+========================================================= */
+
+const fmt = (n: number) =>
+  Number(n || 0).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+const fmt0 = (n: number) =>
+  Number(n || 0).toLocaleString('en-IN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+
+function formatDate(date?: string | null) {
+  if (!date) return '—';
+
+  const d = new Date(date);
+
+  if (Number.isNaN(d.getTime())) {
+    return '—';
+  }
+
+  return d.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+/* =========================================================
+   STATUS
+========================================================= */
 
 const statusColors: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-700',
@@ -21,338 +67,1318 @@ const statusColors: Record<string, string> = {
   cancelled: 'bg-red-100 text-red-700',
 };
 
-const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+/* =========================================================
+   NUMBER TO WORDS
+========================================================= */
+
+const ones = [
+  '',
+  'One',
+  'Two',
+  'Three',
+  'Four',
+  'Five',
+  'Six',
+  'Seven',
+  'Eight',
+  'Nine',
+  'Ten',
+  'Eleven',
+  'Twelve',
+  'Thirteen',
+  'Fourteen',
+  'Fifteen',
+  'Sixteen',
+  'Seventeen',
+  'Eighteen',
+  'Nineteen',
+];
+
+const tens = [
+  '',
+  '',
+  'Twenty',
+  'Thirty',
+  'Forty',
+  'Fifty',
+  'Sixty',
+  'Seventy',
+  'Eighty',
+  'Ninety',
+];
 
 function twoDigits(n: number): string {
-  if (n < 20) return ones[n];
-  return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+  n = Math.floor(Math.abs(n));
+
+  if (n < 20) {
+    return ones[n] || '';
+  }
+
+  return (
+    tens[Math.floor(n / 10)] +
+    (n % 10 ? ` ${ones[n % 10]}` : '')
+  );
 }
 
 function threeDigits(n: number): string {
+  n = Math.floor(Math.abs(n));
+
   const h = Math.floor(n / 100);
   const r = n % 100;
-  let s = '';
-  if (h) s += ones[h] + ' Hundred';
-  if (r) s += (h ? ' ' : '') + twoDigits(r);
-  return s;
+
+  let result = '';
+
+  if (h) {
+    result += `${ones[h]} Hundred`;
+  }
+
+  if (r) {
+    result += `${h ? ' ' : ''}${twoDigits(r)}`;
+  }
+
+  return result;
 }
 
 function numberToWords(num: number): string {
-  const rupees = Math.floor(num);
-  const paise = Math.round((num - rupees) * 100);
+  const value = Number(num || 0);
+
+  const rupees = Math.floor(Math.abs(value));
+
+  let paise = Math.round(
+    (Math.abs(value) - rupees) * 100
+  );
+
+  if (paise === 100) {
+    paise = 0;
+  }
+
+  if (rupees === 0 && paise === 0) {
+    return 'Zero Rupees Only';
+  }
+
   let words = '';
-  const crore = Math.floor(rupees / 10000000);
-  const lakh = Math.floor((rupees % 10000000) / 100000);
-  const thousand = Math.floor((rupees % 100000) / 1000);
-  const hundred = rupees % 1000;
-  if (crore) words += twoDigits(crore) + ' Crore ';
-  if (lakh) words += twoDigits(lakh) + ' Lakh ';
-  if (thousand) words += twoDigits(thousand) + ' Thousand ';
-  if (hundred) words += threeDigits(hundred);
-  if (!words) words = 'Zero';
+
+  const crore = Math.floor(
+    rupees / 10000000
+  );
+
+  const lakh = Math.floor(
+    (rupees % 10000000) / 100000
+  );
+
+  const thousand = Math.floor(
+    (rupees % 100000) / 1000
+  );
+
+  const remaining = rupees % 1000;
+
+  if (crore) {
+    words += `${threeDigits(crore)} Crore `;
+  }
+
+  if (lakh) {
+    words += `${twoDigits(lakh)} Lakh `;
+  }
+
+  if (thousand) {
+    words += `${twoDigits(thousand)} Thousand `;
+  }
+
+  if (remaining) {
+    words += threeDigits(remaining);
+  }
+
+  words = words.trim();
+
+  if (!words) {
+    words = 'Zero';
+  }
+
   words += ' Rupees';
-  if (paise > 0) words += ' and ' + twoDigits(paise) + ' Paise';
+
+  if (paise > 0) {
+    words += ` and ${twoDigits(paise)} Paise`;
+  }
+
   words += ' Only';
+
   return words;
 }
 
-export default function InvoiceViewModal({ invoice, items, onClose }: Props) {
-  const invoiceRef = useRef<HTMLDivElement>(null);
-  const [settings, setSettings] = useState<CompanySettings | null>(null);
-const [upiQr, setUpiQr] = useState("");
-useEffect(() => {
-  const loadCompany = async () => {
-    const { data, error } = await supabase
-      .from("company_settings")
-      .select("*")
-      .single();
+/* =========================================================
+   SOCIAL PLATFORM LABEL
+========================================================= */
 
-    if (error) {
-      console.error("Company Settings Error:", error);
+function getSocialLabel(
+  social: SocialLink
+) {
+  if (social.label?.trim()) {
+    return social.label.trim();
+  }
+
+  switch (social.platform) {
+    case 'instagram':
+      return 'Instagram';
+
+    case 'facebook':
+      return 'Facebook';
+
+    case 'youtube':
+      return 'YouTube';
+
+    case 'linkedin':
+      return 'LinkedIn';
+
+    case 'whatsapp':
+      return 'WhatsApp';
+
+    case 'website':
+      return 'Website';
+
+    default:
+      return 'Follow / Visit Us';
+  }
+}
+
+/* =========================================================
+   SOCIAL URL VALIDATION
+========================================================= */
+
+function isValidUrl(
+  value: string
+) {
+  try {
+    const url = new URL(value);
+
+    return (
+      url.protocol === 'http:' ||
+      url.protocol === 'https:'
+    );
+  } catch {
+    return false;
+  }
+}
+
+/* =========================================================
+   INVOICE CSS
+========================================================= */
+
+const invoiceStyles = `
+@page {
+  size: A4 portrait;
+  margin: 6mm;
+}
+
+.invoice-document,
+.invoice-document * {
+  box-sizing: border-box;
+}
+
+.invoice-document {
+  width: 100%;
+  max-width: 198mm;
+  margin: 0 auto;
+  background: #fff;
+  color: #000;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 8px;
+  line-height: 1.3;
+}
+
+.invoice-document img {
+  display: block;
+  max-width: 100%;
+}
+
+.invoice-border {
+  border: 1px solid #0080ff;
+}
+
+/* =========================================================
+   COMPANY HEADER
+========================================================= */
+
+.company-header {
+  display: grid;
+  grid-template-columns: 72% 28%;
+  min-height: 34mm;
+  border-bottom: 1px solid #0080ff;
+}
+
+.company-main {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px;
+  min-width: 0;
+}
+
+.company-logo {
+  width: 32mm;
+  height: 24mm;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.company-information {
+  min-width: 0;
+  flex: 1;
+}
+
+.company-name {
+  font-size: 17px;
+  line-height: 1.1;
+  font-weight: 800;
+  font-style: italic;
+  margin-bottom: 4px;
+}
+
+.company-line {
+  font-size: 8px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.company-line strong {
+  font-weight: 800;
+}
+
+.company-right {
+  padding: 7px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.company-right-name {
+  font-size: 15px;
+  line-height: 1.1;
+  font-weight: 800;
+  font-style: italic;
+}
+
+/* =========================================================
+   GST / TITLE
+========================================================= */
+
+.invoice-title-row {
+  display: grid;
+  grid-template-columns: 33% 34% 33%;
+  min-height: 8mm;
+  border-bottom: 1px solid #0080ff;
+}
+
+.gstin-cell {
+  display: flex;
+  align-items: center;
+  padding: 3px 5px;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.tax-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-left: 1px solid #0080ff;
+  border-right: 1px solid #0080ff;
+  color: #0070c9;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.recipient {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 3px 5px;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+/* =========================================================
+   CUSTOMER
+========================================================= */
+
+.customer-section {
+  display: grid;
+  grid-template-columns: 55% 45%;
+  min-height: 31mm;
+  border-bottom: 1px solid #0080ff;
+}
+
+.customer-box {
+  padding: 5px;
+  min-width: 0;
+}
+
+.customer-box:first-child {
+  border-right: 1px solid #0080ff;
+}
+
+.section-heading {
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  text-decoration: underline;
+  margin-bottom: 4px;
+}
+
+.customer-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.customer-table td {
+  border: none !important;
+  padding: 1px 2px;
+  vertical-align: top;
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+.customer-table td:first-child {
+  width: 25%;
+  font-weight: 700;
+}
+
+.customer-name {
+  font-size: 10px !important;
+  font-weight: 800 !important;
+}
+
+/* =========================================================
+   ITEMS
+========================================================= */
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.items-table th,
+.items-table td {
+  border: 1px solid #0080ff;
+}
+
+.items-table thead th {
+  background: #eaf5ff;
+  color: #000;
+  padding: 4px 2px;
+  font-size: 7.5px;
+  line-height: 1.15;
+  text-align: center;
+  vertical-align: middle;
+  font-weight: 800;
+}
+
+.items-table tbody td {
+  padding: 3px;
+  font-size: 8px;
+  height: 8mm;
+  vertical-align: top;
+}
+
+.items-table .center {
+  text-align: center;
+}
+
+.items-table .right {
+  text-align: right;
+}
+
+.items-table .description {
+  text-align: left;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.item-note {
+  margin-top: 2px;
+  font-size: 7px;
+  font-weight: 400;
+  color: #555;
+}
+
+/* column widths */
+
+.col-no {
+  width: 5%;
+}
+
+.col-description {
+  width: 24%;
+}
+
+.col-hsn {
+  width: 9%;
+}
+
+.col-unit {
+  width: 7%;
+}
+
+.col-qty {
+  width: 7%;
+}
+
+.col-rate {
+  width: 9%;
+}
+
+.col-taxable {
+  width: 11%;
+}
+
+.col-gst {
+  width: 6%;
+}
+
+.col-cgst {
+  width: 8%;
+}
+
+.col-sgst {
+  width: 8%;
+}
+
+.col-total {
+  width: 12%;
+}
+
+.item-total-row td {
+  background: #f4faff;
+  font-weight: 800;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+/* =========================================================
+   SUMMARY
+========================================================= */
+
+.summary-section {
+  display: grid;
+  grid-template-columns: 60% 40%;
+  min-height: 21mm;
+  border-bottom: 1px solid #0080ff;
+}
+
+.amount-words {
+  padding: 6px;
+  border-right: 1px solid #0080ff;
+}
+
+.amount-words-title {
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.amount-words-text {
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.summary-table td {
+  border: none !important;
+  padding: 2.5px 5px;
+  font-size: 8px;
+}
+
+.summary-table td:first-child {
+  font-weight: 600;
+}
+
+.summary-table td:last-child {
+  text-align: right;
+  font-weight: 700;
+}
+
+.summary-grand td {
+  border-top: 1px solid #0080ff !important;
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+}
+
+/* =========================================================
+   BANK + TAX
+========================================================= */
+
+.bottom-section {
+  display: grid;
+  grid-template-columns: 60% 40%;
+  min-height: 32mm;
+  border-bottom: 1px solid #0080ff;
+}
+
+.bank-section {
+  padding: 5px;
+  border-right: 1px solid #0080ff;
+}
+
+.tax-section {
+  padding: 5px;
+}
+
+.bank-heading,
+.tax-heading {
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.bank-content {
+  display: grid;
+  grid-template-columns: 62% 38%;
+  min-height: 26mm;
+}
+
+.bank-info {
+  font-size: 8px;
+  line-height: 1.55;
+  min-width: 0;
+}
+
+.bank-info-row {
+  display: grid;
+  grid-template-columns: 28% 72%;
+}
+
+.bank-info-label {
+  font-weight: 800;
+}
+
+.bank-info-value {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.invoice-bank-detail {
+  margin-bottom: 4px;
+  font-size: 7.5px;
+  line-height: 1.35;
+}
+
+.qr-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-area img {
+  width: 26mm;
+  height: 26mm;
+  object-fit: contain;
+  border: 1px solid #ddd;
+  padding: 2px;
+  background: #fff;
+}
+
+.qr-text {
+  margin-top: 2px;
+  font-size: 7px;
+  font-weight: 800;
+}
+
+/* =========================================================
+   SOCIAL MEDIA QR
+========================================================= */
+
+.social-section {
+  border-bottom: 1px solid #0080ff;
+  padding: 5px;
+}
+
+.social-heading {
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.social-grid {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.social-card {
+  width: 29mm;
+  min-height: 31mm;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.social-card img {
+  width: 21mm;
+  height: 21mm;
+  object-fit: contain;
+  border: 1px solid #ddd;
+  padding: 1px;
+  background: #fff;
+}
+
+.social-card-title {
+  margin-top: 2px;
+  font-size: 7px;
+  line-height: 1.2;
+  font-weight: 800;
+  word-break: break-word;
+}
+
+.social-card-url {
+  margin-top: 1px;
+  font-size: 5.5px;
+  line-height: 1.1;
+  color: #555;
+  max-width: 29mm;
+  word-break: break-all;
+}
+
+/* =========================================================
+   TERMS + SIGNATURE
+========================================================= */
+
+.final-section {
+  display: grid;
+  grid-template-columns: 60% 40%;
+  min-height: 35mm;
+  border-bottom: 1px solid #0080ff;
+}
+
+.terms-section {
+  padding: 5px;
+  border-right: 1px solid #0080ff;
+}
+
+.terms-heading {
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+
+.terms-content {
+  font-size: 7.5px;
+  line-height: 1.45;
+}
+
+.term-line {
+  margin-bottom: 2px;
+}
+
+.signature-section {
+  padding: 5px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.for-company {
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.signature-image {
+  width: 42mm;
+  height: 16mm;
+  object-fit: contain;
+  margin: 1px auto;
+}
+
+.signature-placeholder {
+  width: 42mm;
+  height: 16mm;
+}
+
+.authorised {
+  width: 100%;
+  border-top: 1px solid #0080ff;
+  padding-top: 3px;
+  margin-top: 2px;
+  font-size: 7.5px;
+  font-weight: 800;
+}
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+.invoice-footer {
+  padding: 4px;
+  text-align: center;
+  font-size: 7.5px;
+  font-weight: 700;
+}
+
+/* =========================================================
+   PREVIEW
+========================================================= */
+
+.invoice-preview-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  background: #f3f4f6;
+  padding: 20px;
+}
+
+@media screen {
+  .invoice-document {
+    box-shadow: 0 2px 12px rgba(0,0,0,.08);
+  }
+}
+
+/* =========================================================
+   PRINT
+========================================================= */
+
+@media print {
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  .invoice-document {
+    width: 198mm;
+    max-width: 198mm;
+    margin: 0 auto;
+  }
+
+  .invoice-border {
+    border: 1px solid #0080ff;
+  }
+
+  table,
+  tr,
+  td,
+  th,
+  .company-header,
+  .customer-section,
+  .summary-section,
+  .bottom-section,
+  .social-section,
+  .final-section {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
+`;
+
+/* =========================================================
+   COMPONENT
+========================================================= */
+
+export default function InvoiceViewModal({
+  invoice,
+  items,
+  onClose,
+}: Props) {
+  const invoiceRef =
+    useRef<HTMLDivElement>(null);
+
+  const [settings, setSettings] =
+    useState<CompanySettings | null>(
+      null
+    );
+
+  const [socialLinks, setSocialLinks] =
+    useState<SocialLink[]>([]);
+
+  const [socialQrs, setSocialQrs] =
+    useState<
+      Record<string, string>
+    >({});
+
+  const [upiQr, setUpiQr] =
+    useState('');
+
+  /* =========================================================
+     LOAD COMPANY SETTINGS
+  ========================================================= */
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCompany =
+      async () => {
+        try {
+          /* ---------------------------------------------
+             COMPANY SETTINGS
+          --------------------------------------------- */
+
+          const {
+            data,
+            error,
+          } = await supabase
+            .from(
+              'company_settings'
+            )
+            .select('*')
+            .single();
+
+          if (error) {
+            console.error(
+              'Company Settings Error:',
+              error
+            );
+
+            return;
+          }
+
+          if (
+            cancelled ||
+            !data
+          ) {
+            return;
+          }
+
+          /* ---------------------------------------------
+             NORMALIZE ARRAYS
+          --------------------------------------------- */
+
+          const companySettings:
+            CompanySettings = {
+            ...data,
+
+            phone_numbers:
+              Array.isArray(
+                data.phone_numbers
+              )
+                ? data.phone_numbers
+                : [],
+
+            emails:
+              Array.isArray(
+                data.emails
+              )
+                ? data.emails
+                : [],
+          };
+
+          setSettings(
+            companySettings
+          );
+
+          /* ---------------------------------------------
+             UPI QR
+          --------------------------------------------- */
+
+          if (
+            data.upi_id &&
+            isValidUrl(
+              'https://example.com'
+            )
+          ) {
+            try {
+              const upiPayload =
+                `upi://pay?pa=${encodeURIComponent(
+                  data.upi_id
+                )}` +
+                `&pn=${encodeURIComponent(
+                  data.company_name ||
+                    ''
+                )}` +
+                `&am=${Number(
+                  invoice.grand_total ||
+                    0
+                ).toFixed(2)}` +
+                `&cu=INR`;
+
+              const qr =
+                await QRCode.toDataURL(
+                  upiPayload,
+                  {
+                    margin: 1,
+                    width: 300,
+                    errorCorrectionLevel:
+                      'M',
+                  }
+                );
+
+              if (
+                !cancelled
+              ) {
+                setUpiQr(qr);
+              }
+            } catch (error) {
+              console.error(
+                'UPI QR Generation Error:',
+                error
+              );
+
+              if (
+                !cancelled
+              ) {
+                setUpiQr('');
+              }
+            }
+          } else {
+            /*
+             * UPI IDs don't need URL validation.
+             * Generate QR whenever a UPI ID exists.
+             */
+
+            if (data.upi_id) {
+              try {
+                const upiPayload =
+                  `upi://pay?pa=${encodeURIComponent(
+                    data.upi_id
+                  )}` +
+                  `&pn=${encodeURIComponent(
+                    data.company_name ||
+                      ''
+                  )}` +
+                  `&am=${Number(
+                    invoice.grand_total ||
+                      0
+                  ).toFixed(2)}` +
+                  `&cu=INR`;
+
+                const qr =
+                  await QRCode.toDataURL(
+                    upiPayload,
+                    {
+                      margin: 1,
+                      width: 300,
+                      errorCorrectionLevel:
+                        'M',
+                    }
+                  );
+
+                if (
+                  !cancelled
+                ) {
+                  setUpiQr(qr);
+                }
+              } catch (error) {
+                console.error(
+                  'UPI QR Generation Error:',
+                  error
+                );
+              }
+            } else {
+              setUpiQr('');
+            }
+          }
+
+          /* ---------------------------------------------
+             SOCIAL LINKS
+          --------------------------------------------- */
+
+          const {
+            data: socialData,
+            error: socialError,
+          } = await supabase
+            .from('social_links')
+            .select('*')
+            .eq(
+              'company_id',
+              data.id
+            )
+            .eq(
+              'is_active',
+              true
+            )
+            .order(
+              'display_order',
+              {
+                ascending: true,
+              }
+            );
+
+          if (
+            socialError
+          ) {
+            console.error(
+              'Social Links Error:',
+              socialError
+            );
+
+            if (
+              !cancelled
+            ) {
+              setSocialLinks(
+                []
+              );
+              setSocialQrs({});
+            }
+
+            return;
+          }
+
+          const activeSocialLinks =
+            (
+              socialData ||
+              []
+            ).filter(
+              (
+                social
+              ) =>
+                social.url &&
+                isValidUrl(
+                  social.url
+                )
+            ) as SocialLink[];
+
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+          setSocialLinks(
+            activeSocialLinks
+          );
+
+          /* ---------------------------------------------
+             GENERATE SOCIAL QR CODES
+          --------------------------------------------- */
+
+          const qrEntries: Record<
+            string,
+            string
+          > = {};
+
+          for (
+            const social of activeSocialLinks
+          ) {
+            try {
+              const qr =
+                await QRCode.toDataURL(
+                  social.url,
+                  {
+                    margin: 1,
+                    width: 250,
+                    errorCorrectionLevel:
+                      'M',
+                  }
+                );
+
+              qrEntries[
+                social.id
+              ] = qr;
+            } catch (error) {
+              console.error(
+                `Social QR Error for ${social.platform}:`,
+                error
+              );
+            }
+          }
+
+          if (
+            !cancelled
+          ) {
+            setSocialQrs(
+              qrEntries
+            );
+          }
+        } catch (error) {
+          console.error(
+            'Invoice Company Load Error:',
+            error
+          );
+        }
+      };
+
+    loadCompany();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    invoice.grand_total,
+  ]);
+
+  /* =========================================================
+     COMPANY DATA
+
+     IMPORTANT:
+     Company address comes ONLY from company_settings.address.
+  ========================================================= */
+
+  const companyName =
+    settings?.company_name ||
+    'B M N ENTERPRISES';
+
+  const companyAddress =
+    settings?.address || '';
+
+  /* =========================================================
+     MULTIPLE PHONE NUMBERS
+  ========================================================= */
+
+  const companyPhones =
+    Array.isArray(
+      settings?.phone_numbers
+    )
+      ? settings.phone_numbers
+          .map(
+            (phone) =>
+              phone?.trim()
+          )
+          .filter(Boolean)
+      : [];
+
+  /* =========================================================
+     MULTIPLE EMAILS
+  ========================================================= */
+
+  const companyEmails =
+    Array.isArray(
+      settings?.emails
+    )
+      ? settings.emails
+          .map(
+            (email) =>
+              email?.trim()
+          )
+          .filter(Boolean)
+      : [];
+
+  const companyGstin =
+    settings?.gstin || '';
+
+  const companyPan =
+    settings?.pan || '';
+
+  const bankName =
+    settings?.bank_name || '';
+
+  const accountNumber =
+    settings?.account_number ||
+    '';
+
+  const ifscCode =
+    settings?.ifsc_code || '';
+
+  const branch =
+    settings?.branch || '';
+
+  const upiId =
+    settings?.upi_id || '';
+
+  /* =========================================================
+     CALCULATIONS
+  ========================================================= */
+
+  const subtotal =
+    Number(invoice.subtotal) ||
+    0;
+
+  const gstTotal =
+    Number(invoice.gst_total) ||
+    0;
+
+  const cgstTotal =
+    gstTotal / 2;
+
+  const sgstTotal =
+    gstTotal / 2;
+
+  const discountValue =
+    Number(
+      invoice.discount_value
+    ) || 0;
+
+  const tcsValue =
+    Number(invoice.tcs_value) ||
+    0;
+
+  const tcsAmount =
+    invoice.tcs_type ===
+    'percentage'
+      ? (subtotal * tcsValue) / 100
+      : tcsValue;
+
+  const roundOff =
+    Number(invoice.round_off) ||
+    0;
+
+  const grandTotal =
+    Number(invoice.grand_total) ||
+    0;
+
+  /* =========================================================
+     PRINT
+  ========================================================= */
+
+  const handlePrint = () => {
+    if (
+      !invoiceRef.current
+    ) {
       return;
     }
 
-    console.log("Company Settings:", data);
+    const printWindow =
+      window.open(
+        '',
+        '_blank',
+        'width=1100,height=900'
+      );
 
-    setSettings(data);
+    if (!printWindow) {
+      alert(
+        'Please allow popups to print the invoice.'
+      );
 
-    // Generate Dynamic UPI QR Code
-    if (data?.upi_id) {
-      try {
-        const qr = await QRCode.toDataURL(
-          `upi://pay?pa=${data.upi_id}` +
-          `&pn=${encodeURIComponent(data.company_name)}` +
-          `&am=${Number(invoice.grand_total).toFixed(2)}` +
-          `&cu=INR`
-        );
-
-        setUpiQr(qr);
-      } catch (err) {
-        console.error("QR Generation Error:", err);
-      }
+      return;
     }
-  };
 
-  loadCompany();
-}, [invoice.grand_total]);
+    const invoiceHtml =
+      invoiceRef.current
+        .innerHTML;
 
-  const companyName = settings?.company_name || 'Bharat Advance';
-  const companyAddress = settings?.address || '123 Business Avenue, Commercial District, City - 400001';
-  const companyPhone = settings?.phone || '+91 98765 43210';
-  const companyEmail = settings?.email || 'info@bharatadvance.com';
-  const companyGstin = settings?.gstin || '';
-  const companyPan = settings?.pan || '';
-  const bankName = settings?.bank_name || '';
-  const accountNumber = settings?.account_number || '';
-  const ifscCode = settings?.ifsc_code || '';
-  const branch = settings?.branch || '';
-  const upiId = settings?.upi_id || '';
+    printWindow.document.open();
 
- const handlePrint = () => {
-  if (!invoiceRef.current) return;
-
-  const printWindow = window.open("", "_blank", "width=1000,height=900");
-
-  if (!printWindow) return;
-
-  printWindow.document.write(`
+    printWindow.document.write(`
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Invoice ${invoice.invoice_number}</title>
+
+<meta charset="UTF-8" />
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+/>
+
+<title>
+Tax Invoice ${invoice.invoice_number}
+</title>
 
 <style>
 
-@page{
-    size:A4 portrait;
-    margin:8mm;
-}
-
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-    font-family:Arial,sans-serif;
-}
+${invoiceStyles}
 
 html,
-body{
-    width:210mm;
-    background:white;
-    color:#222;
-    font-size:11px;
-    margin:0;
-    padding:0;
-    -webkit-print-color-adjust:exact;
-    print-color-adjust:exact;
-}
-
-.invoice-box{
-    width:100%;
-    max-width:194mm;
-    margin:auto;
-    border:1px solid #ddd;
-    overflow:hidden;
-}
-
-img{
-    display:block;
-    max-width:100%;
-}
-
-.gstin-bar,
-.header,
-.bill-section,
-.summary-section,
-.bank-section,
-.sign-section,
-.footer,
-table{
-    page-break-inside:avoid;
-    break-inside:avoid;
-}
-
-.header{
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    padding:16px;
-    border-bottom:2px solid #14532d;
-}
-
-.logo-area{
-    display:flex;
-    gap:12px;
-    align-items:center;
-}
-
-.logo-area img{
-    width:48px;
-    height:48px;
-    border-radius:50%;
-    object-fit:cover;
-}
-
-.company-name{
-    font-size:18px;
-    font-weight:bold;
-    color:#14532d;
-}
-
-.company-addr{
-    font-size:10px;
-    color:#666;
-    line-height:1.4;
-}
-
-.invoice-title{
-    font-size:24px;
-    font-weight:bold;
-    color:#14532d;
-}
-
-.invoice-meta{
-    text-align:right;
-}
-
-.bill-section{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-}
-
-.bill-box{
-    padding:14px;
-}
-
-.bill-label{
-    font-size:9px;
-    color:#16a34a;
-    font-weight:bold;
-    text-transform:uppercase;
-    margin-bottom:5px;
-}
-
-.bill-name{
-    font-size:14px;
-    font-weight:bold;
-    color:#14532d;
-}
-
-.bill-detail{
-    font-size:10px;
-    color:#555;
-    line-height:1.5;
-}
-
-table{
-    width:100%;
-    border-collapse:collapse;
-}
-
-th{
-    background:#14532d;
-    color:white;
-    font-size:9px;
-    padding:8px;
-}
-
-td{
-    font-size:10px;
-    padding:6px;
-    border-bottom:1px solid #ddd;
-}
-
-.summary-section{
-    display:grid;
-    grid-template-columns:1fr 280px;
-}
-
-.amount-words{
-    padding:14px;
-}
-
-.summary-table{
-    width:100%;
-}
-
-.summary-table td{
-    border:none;
-    padding:4px 12px;
-}
-
-.bank-section{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-}
-
-.bank-box{
-    padding:14px;
-    background:#f0fdf4;
-}
-
-.bank-label{
-    font-size:9px;
-    color:#16a34a;
-    font-weight:bold;
-    margin-bottom:6px;
-}
-
-.bank-detail{
-    font-size:10px;
-    line-height:1.6;
-}
-
-.bank-detail img{
-    width:85px;
-    height:85px;
-    margin-top:8px;
-}
-
-.sign-section{
-    display:grid;
-    grid-template-columns:1fr 220px;
-    gap:20px;
-    align-items:end;
-    padding:16px;
-}
-
-.sign-left{
-    font-size:10px;
-    color:#666;
-    line-height:1.5;
-}
-
-.sign-right{
-    text-align:right;
-}
-
-.sign-right img{
-    max-height:50px;
-    max-width:180px;
-    margin-left:auto;
-    object-fit:contain;
-}
-
-.footer{
-    background:#14532d;
-    color:white;
-    text-align:center;
-    padding:8px;
-    font-size:10px;
-}
-
-@media print{
-
-    body{
-        margin:0;
-        padding:0;
-    }
-
-    .invoice-box{
-        border:none;
-    }
-
+body {
+  width: 210mm;
+  min-height: 297mm;
 }
 
 </style>
@@ -361,322 +1387,1595 @@ td{
 
 <body>
 
-${invoiceRef.current.innerHTML}
+${invoiceHtml}
 
 </body>
+
 </html>
 `);
 
-  printWindow.document.close();
+    printWindow.document.close();
 
-  printWindow.onload = () => {
-
-    const images = printWindow.document.images;
-
-    if (images.length === 0) {
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
-      return;
-    }
-
-    let loaded = 0;
-
-    const finish = () => {
-      loaded++;
-
-      if (loaded === images.length) {
+    const printInvoice =
+      () => {
         setTimeout(() => {
           printWindow.focus();
+
           printWindow.print();
-          printWindow.close();
-        }, 400);
-      }
-    };
 
-    Array.from(images).forEach((img) => {
+          setTimeout(() => {
+            printWindow.close();
+          }, 500);
+        }, 300);
+      };
 
-      if (img.complete) {
-        finish();
-      } else {
-        img.onload = finish;
-        img.onerror = finish;
-      }
+    /* ---------------------------------------------
+       WAIT FOR IMAGES
+    --------------------------------------------- */
 
-    });
+    const waitForImages =
+      () => {
+        const images =
+          Array.from(
+            printWindow
+              .document
+              .images
+          );
 
+        if (
+          images.length ===
+          0
+        ) {
+          printInvoice();
+
+          return;
+        }
+
+        let completed = 0;
+
+        const done = () => {
+          completed++;
+
+          if (
+            completed >=
+            images.length
+          ) {
+            printInvoice();
+          }
+        };
+
+        images.forEach(
+          (img) => {
+            if (
+              img.complete
+            ) {
+              done();
+            } else {
+              img.onload =
+                done;
+
+              img.onerror =
+                done;
+            }
+          }
+        );
+      };
+
+    if (
+      printWindow.document
+        .readyState ===
+      'complete'
+    ) {
+      waitForImages();
+    } else {
+      printWindow.onload =
+        waitForImages;
+    }
   };
 
-};
+  /* =========================================================
+     JSX
+  ========================================================= */
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
-        {/* Modal header */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+
+      <div className="bg-white rounded-2xl w-full max-w-6xl shadow-2xl overflow-hidden max-h-[95vh] flex flex-col">
+
+        {/* =================================================
+            MODAL HEADER
+        ================================================= */}
+
         <div className="flex items-center justify-between px-6 py-4 border-b border-green-100 shrink-0">
-          <h3 className="font-display text-xl font-bold text-green-900">Tax Invoice {invoice.invoice_number}</h3>
+
+          <h3 className="font-display text-xl font-bold text-green-900">
+            Tax Invoice{' '}
+            {invoice.invoice_number}
+          </h3>
+
           <div className="flex items-center gap-2">
-            <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${statusColors[invoice.status]}`}>
-              {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+
+            <span
+              className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                statusColors[
+                  invoice.status
+                ] ||
+                'bg-gray-100 text-gray-700'
+              }`}
+            >
+              {invoice.status
+                ? invoice.status
+                    .charAt(0)
+                    .toUpperCase() +
+                  invoice.status.slice(
+                    1
+                  )
+                : 'Draft'}
             </span>
-            <button onClick={handlePrint} className="flex items-center gap-1.5 bg-green-800 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-600 transition-colors">
-              <Printer className="w-4 h-4" /> Print
+
+            <button
+              onClick={
+                handlePrint
+              }
+              className="flex items-center gap-1.5 bg-green-800 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-600 transition-colors"
+            >
+
+              <Printer className="w-4 h-4" />
+
+              Print / PDF
+
             </button>
-            <button onClick={onClose} className="p-1.5 hover:bg-green-100 rounded-lg transition-colors">
+
+            <button
+              onClick={
+                onClose
+              }
+              className="p-1.5 hover:bg-green-100 rounded-lg transition-colors"
+              aria-label="Close"
+            >
+
               <X className="w-5 h-5 text-green-500" />
+
             </button>
+
           </div>
+
         </div>
 
-        {/* Invoice body */}
-        <div className="overflow-y-auto p-6 bg-gray-50" ref={invoiceRef}>
-          <div className="invoice-box bg-white border border-gray-200 rounded-lg overflow-hidden max-w-[800px] mx-auto">
-            {/* GSTIN bar */}
-            <div className="gstin-bar bg-green-900 text-white px-5 py-1.5 text-[11px] flex justify-between">
-              <span>GSTIN: {companyGstin || '—'}</span>
-              {/* <span>PAN: {companyPan || '—'}</span> */}
-              {/* <span>State: 27-Maharashtra</span> */}
-            </div>
+        {/* =================================================
+            INVOICE PREVIEW
+        ================================================= */}
 
-            {/* Header */}
-            <div className="header flex justify-between items-start px-5 py-5 border-b-2 border-green-900">
-              <div className="logo-area flex items-center gap-3">
-               <Image
-  src={settings?.logo_url || "/bmn_logo.jpeg"}
-  alt={companyName}
-  width={48}
-  height={48}
-  className="rounded-full object-cover"
-  unoptimized
-/>
-                <div>
-                  <div className="company-name text-lg font-bold text-green-900">{companyName}</div>
-                  <div className="company-addr text-[10px] text-gray-500 mt-0.5 leading-tight">{companyAddress}</div>
-                  <div className="company-addr text-[10px] text-gray-500">Ph: {companyPhone} &middot; {companyEmail}</div>
-                </div>
-              </div>
-              <div className="invoice-meta text-right">
-                <div className="invoice-title text-2xl font-bold text-green-900">TAX INVOICE</div>
-                <div className="invoice-no text-[11px] text-gray-500 mt-1">No: {invoice.invoice_number}</div>
-                <div className="invoice-no text-[11px] text-gray-500">Date: {new Date(invoice.invoice_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
-                {invoice.due_date && <div className="invoice-no text-[11px] text-gray-500">Due: {new Date(invoice.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>}
-              </div>
-            </div>
+        <div className="overflow-y-auto flex-1">
 
-            {/* Bill To / Place of Supply */}
-            <div className="bill-section flex gap-px bg-gray-200">
-              <div className="bill-box flex-1 px-4 py-3 bg-white">
-                <div className="bill-label text-[9px] font-bold text-green-600 uppercase tracking-wider mb-1">Bill To</div>
-                <div className="bill-name text-sm font-bold text-green-900">{invoice.customer_name}</div>
-                <div className="bill-detail text-[10px] text-gray-600 leading-relaxed mt-0.5">
-                  {invoice.contact_person && <div>Contact: <span className="font-semibold">{invoice.contact_person}</span></div>}
-                  {invoice.customer_address && <div>{invoice.customer_address}</div>}
-                  {invoice.customer_phone && <div>Ph: {invoice.customer_phone}</div>}
-                  {invoice.customer_email && <div>{invoice.customer_email}</div>}
-                  {invoice.customer_gst && <div>GSTIN: <span className="font-semibold">{invoice.customer_gst}</span></div>}
-                  {invoice.customer_pan && <div>PAN: <span className="font-semibold">{invoice.customer_pan}</span></div>}
-                </div>
-              </div>
-              <div className="bill-box flex-1 px-4 py-3 bg-white">
-                <div className="bill-label text-[9px] font-bold text-green-600 uppercase tracking-wider mb-1">Details</div>
-                <div className="bill-detail text-[10px] text-gray-600 leading-relaxed">
-                  <div>Place of Supply: <span className="font-semibold text-green-900">{invoice.place_of_supply || '—'}</span></div>
-                  <div>Payment Type: <span className="font-semibold text-green-900">{invoice.payment_type || 'Credit'}</span></div>
-                  <div>Reverse Charge: <span className="font-semibold text-green-900">{invoice.reverse_charge || 'No'}</span></div>
-                  {invoice.delivery_mode && <div>Delivery: <span className="font-semibold text-green-900">{invoice.delivery_mode}</span></div>}
-                  {invoice.challan_no && <div>Challan: <span className="font-semibold text-green-900">{invoice.challan_no}{invoice.challan_date ? ` · ${new Date(invoice.challan_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}` : ''}</span></div>}
-                  {invoice.po_no && <div>PO: <span className="font-semibold text-green-900">{invoice.po_no}{invoice.po_date ? ` · ${new Date(invoice.po_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}` : ''}</span></div>}
-                  {invoice.lr_no && <div>LR/Transport: <span className="font-semibold text-green-900">{invoice.lr_no}</span></div>}
-                  {invoice.eway_no && <div>E-Way: <span className="font-semibold text-green-900">{invoice.eway_no}</span></div>}
-                </div>
-              </div>
-            </div>
+          <div
+            ref={
+              invoiceRef
+            }
+            className="invoice-preview-wrapper"
+          >
 
-            {/* Items table */}
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-green-900 text-white">
-                  <th className="desc text-left text-[9px] uppercase px-2 py-2">#</th>
-                  <th className="desc text-left text-[9px] uppercase px-2 py-2">Description</th>
-                  <th className="text-[9px] uppercase px-1 py-2">HSN/SAC</th>
-                  <th className="text-[9px] uppercase px-1 py-2">Unit</th>
-                  <th className="text-[9px] uppercase px-1 py-2">Qty</th>
-                  <th className="rt text-right text-[9px] uppercase px-2 py-2">Rate</th>
-                  <th className="rt text-right text-[9px] uppercase px-2 py-2">Base</th>
-                  <th className="text-[9px] uppercase px-1 py-2">GST%</th>
-                  <th className="rt text-right text-[9px] uppercase px-2 py-2">CGST</th>
-                  <th className="rt text-right text-[9px] uppercase px-2 py-2">SGST</th>
-                  <th className="rt text-right text-[9px] uppercase px-2 py-2">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((it, idx) => {
-                  const base = Number(it.base_amount);
-                  const gst = Number(it.gst_amount);
-                  const total = Number(it.total);
-                  const cgst = gst / 2;
-                  const sgst = gst / 2;
-                  return (
-                    <tr key={it.id} className="border-b border-gray-200">
-                      <td className="desc text-left text-[11px] px-2 py-2 text-center">{idx + 1}</td>
-                      <td className="desc text-left text-[11px] px-2 py-2">
-                        {it.description}
-                        {it.item_note && <div className="text-[9px] text-gray-400 mt-0.5">{it.item_note}</div>}
+            <style>
+              {
+                invoiceStyles
+              }
+            </style>
+
+            <div className="invoice-document invoice-border">
+
+              {/* =================================================
+                  COMPANY HEADER
+              ================================================= */}
+
+              <div className="company-header">
+
+                {/* LEFT */}
+
+                <div className="company-main">
+
+                  <Image
+                    src={
+                      settings?.logo_url ||
+                      '/bmn_logo.jpeg'
+                    }
+                    alt={
+                      companyName
+                    }
+                    width={150}
+                    height={100}
+                    className="company-logo"
+                    unoptimized
+                  />
+
+                  <div className="company-information">
+
+                    <div className="company-name">
+                      {
+                        companyName
+                      }
+                    </div>
+
+                    {/* =========================================
+                        MULTIPLE PHONE NUMBERS
+                    ========================================= */}
+
+                    {companyPhones.length >
+                      0 && (
+                      <div className="company-line">
+
+                        <strong>
+                          Mobile:
+                        </strong>{' '}
+
+                        {
+                          companyPhones.join(
+                            ' | '
+                          )
+                        }
+
+                      </div>
+                    )}
+
+                    {/* =========================================
+                        MULTIPLE EMAILS
+                    ========================================= */}
+
+                    {companyEmails.length >
+                      0 && (
+                      <div className="company-line">
+
+                        <strong>
+                          Email ID:
+                        </strong>{' '}
+
+                        {
+                          companyEmails.join(
+                            ' | '
+                          )
+                        }
+
+                      </div>
+                    )}
+
+                    {/* =========================================
+                        COMPANY ADDRESS
+
+                        ONLY ONE ADDRESS.
+                    ========================================= */}
+
+                    {companyAddress && (
+                      <div className="company-line">
+
+                        <strong>
+                          Address:
+                        </strong>{' '}
+
+                        {
+                          companyAddress
+                        }
+
+                      </div>
+                    )}
+
+                    {/* PAN */}
+
+                    {companyPan && (
+                      <div className="company-line">
+
+                        <strong>
+                          PAN:
+                        </strong>{' '}
+
+                        {
+                          companyPan
+                        }
+
+                      </div>
+                    )}
+
+                  </div>
+
+                </div>
+
+                {/* RIGHT
+
+                    COMPANY NAME ONLY.
+                    No address.
+                    No phone.
+                    No email.
+                */}
+
+                <div className="company-right">
+
+                  <div className="company-right-name">
+                    {
+                      companyName
+                    }
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* =================================================
+                  GST / TITLE
+              ================================================= */}
+
+              <div className="invoice-title-row">
+
+                <div className="gstin-cell">
+
+                  GSTIN:{' '}
+
+                  {
+                    companyGstin ||
+                    '—'
+                  }
+
+                </div>
+
+                <div className="tax-title">
+                  TAX INVOICE
+                </div>
+
+                <div className="recipient">
+                  ORIGINAL FOR RECIPIENT
+                </div>
+
+              </div>
+
+              {/* =================================================
+                  CUSTOMER + INVOICE DETAILS
+              ================================================= */}
+
+              <div className="customer-section">
+
+                {/* CUSTOMER */}
+
+                <div className="customer-box">
+
+                  <div className="section-heading">
+                    Customer Details
+                  </div>
+
+                  <table className="customer-table">
+
+                    <tbody>
+
+                      <tr>
+
+                        <td>
+                          M/S
+                        </td>
+
+                        <td className="customer-name">
+
+                          {
+                            invoice.customer_name ||
+                            '—'
+                          }
+
+                        </td>
+
+                      </tr>
+
+                      {invoice.contact_person && (
+                        <tr>
+
+                          <td>
+                            Contact
+                          </td>
+
+                          <td>
+                            {
+                              invoice.contact_person
+                            }
+                          </td>
+
+                        </tr>
+                      )}
+
+                      {invoice.customer_address && (
+                        <tr>
+
+                          <td>
+                            Address
+                          </td>
+
+                          <td>
+                            {
+                              invoice.customer_address
+                            }
+                          </td>
+
+                        </tr>
+                      )}
+
+                      {invoice.customer_phone && (
+                        <tr>
+
+                          <td>
+                            Phone
+                          </td>
+
+                          <td>
+                            {
+                              invoice.customer_phone
+                            }
+                          </td>
+
+                        </tr>
+                      )}
+
+                      {invoice.customer_email && (
+                        <tr>
+
+                          <td>
+                            Email
+                          </td>
+
+                          <td>
+                            {
+                              invoice.customer_email
+                            }
+                          </td>
+
+                        </tr>
+                      )}
+
+                      {invoice.customer_gst && (
+                        <tr>
+
+                          <td>
+                            GSTIN
+                          </td>
+
+                          <td>
+
+                            <strong>
+                              {
+                                invoice.customer_gst
+                              }
+                            </strong>
+
+                          </td>
+
+                        </tr>
+                      )}
+
+                      {invoice.customer_pan && (
+                        <tr>
+
+                          <td>
+                            PAN
+                          </td>
+
+                          <td>
+
+                            <strong>
+                              {
+                                invoice.customer_pan
+                              }
+                            </strong>
+
+                          </td>
+
+                        </tr>
+                      )}
+
+                      <tr>
+
+                        <td>
+                          Place of Supply
+                        </td>
+
+                        <td>
+
+                          {
+                            invoice.place_of_supply ||
+                            '—'
+                          }
+
+                        </td>
+
+                      </tr>
+
+                    </tbody>
+
+                  </table>
+
+                </div>
+
+                {/* INVOICE DETAILS */}
+
+                <div className="customer-box">
+
+                  <div className="section-heading">
+                    Invoice Details
+                  </div>
+
+                  <table className="customer-table">
+
+                    <tbody>
+
+                      <tr>
+
+                        <td>
+                          Invoice No.
+                        </td>
+
+                        <td>
+
+                          <strong>
+                            {
+                              invoice.invoice_number
+                            }
+                          </strong>
+
+                        </td>
+
+                      </tr>
+
+                      <tr>
+
+                        <td>
+                          Invoice Date
+                        </td>
+
+                        <td>
+                          {formatDate(
+                            invoice.invoice_date
+                          )}
+                        </td>
+
+                      </tr>
+
+                      {invoice.due_date && (
+                        <tr>
+
+                          <td>
+                            Due Date
+                          </td>
+
+                          <td>
+                            {formatDate(
+                              invoice.due_date
+                            )}
+                          </td>
+
+                        </tr>
+                      )}
+
+                      <tr>
+
+                        <td>
+                          Payment Type
+                        </td>
+
+                        <td>
+                          {
+                            invoice.payment_type ||
+                            'Credit'
+                          }
+                        </td>
+
+                      </tr>
+
+                      <tr>
+
+                        <td>
+                          Reverse Charge
+                        </td>
+
+                        <td>
+                          {
+                            invoice.reverse_charge ||
+                            'No'
+                          }
+                        </td>
+
+                      </tr>
+
+                      {invoice.delivery_mode && (
+                        <tr>
+
+                          <td>
+                            Delivery
+                          </td>
+
+                          <td>
+                            {
+                              invoice.delivery_mode
+                            }
+                          </td>
+
+                        </tr>
+                      )}
+
+                      {invoice.challan_no && (
+                        <tr>
+
+                          <td>
+                            Challan No.
+                          </td>
+
+                          <td>
+
+                            {
+                              invoice.challan_no
+                            }
+
+                            {invoice.challan_date &&
+                              ` · ${formatDate(
+                                invoice.challan_date
+                              )}`}
+
+                          </td>
+
+                        </tr>
+                      )}
+
+                      {invoice.po_no && (
+                        <tr>
+
+                          <td>
+                            PO No.
+                          </td>
+
+                          <td>
+
+                            {
+                              invoice.po_no
+                            }
+
+                            {invoice.po_date &&
+                              ` · ${formatDate(
+                                invoice.po_date
+                              )}`}
+
+                          </td>
+
+                        </tr>
+                      )}
+
+                      {invoice.lr_no && (
+                        <tr>
+
+                          <td>
+                            LR / Transport
+                          </td>
+
+                          <td>
+                            {
+                              invoice.lr_no
+                            }
+                          </td>
+
+                        </tr>
+                      )}
+
+                      {invoice.eway_no && (
+                        <tr>
+
+                          <td>
+                            E-Way Bill
+                          </td>
+
+                          <td>
+                            {
+                              invoice.eway_no
+                            }
+                          </td>
+
+                        </tr>
+                      )}
+
+                    </tbody>
+
+                  </table>
+
+                </div>
+
+              </div>
+
+              {/* =================================================
+                  ITEMS
+              ================================================= */}
+
+              <table className="items-table">
+
+                <colgroup>
+
+                  <col className="col-no" />
+                  <col className="col-description" />
+                  <col className="col-hsn" />
+                  <col className="col-unit" />
+                  <col className="col-qty" />
+                  <col className="col-rate" />
+                  <col className="col-taxable" />
+                  <col className="col-gst" />
+                  <col className="col-cgst" />
+                  <col className="col-sgst" />
+                  <col className="col-total" />
+
+                </colgroup>
+
+                <thead>
+
+                  <tr>
+
+                    <th>
+                      Sr.
+                      <br />
+                      No.
+                    </th>
+
+                    <th>
+                      Name of Product / Service
+                    </th>
+
+                    <th>
+                      HSN / SAC
+                    </th>
+
+                    <th>
+                      Unit
+                    </th>
+
+                    <th>
+                      Qty
+                    </th>
+
+                    <th>
+                      Rate
+                    </th>
+
+                    <th>
+                      Taxable Value
+                    </th>
+
+                    <th>
+                      GST
+                      <br />
+                      %
+                    </th>
+
+                    <th>
+                      CGST
+                      <br />
+                      Amount
+                    </th>
+
+                    <th>
+                      SGST
+                      <br />
+                      Amount
+                    </th>
+
+                    <th>
+                      Total
+                    </th>
+
+                  </tr>
+
+                </thead>
+
+                <tbody>
+
+                  {items.length ===
+                  0 ? (
+
+                    <tr>
+
+                      <td
+                        colSpan={
+                          11
+                        }
+                        className="center"
+                        style={{
+                          height:
+                            '20mm',
+                        }}
+                      >
+                        No invoice items
                       </td>
-                      <td className="text-[11px] px-1 py-2 text-center">{it.hsn_sac_code || '—'}</td>
-                      <td className="text-[11px] px-1 py-2 text-center">{it.unit || 'NOS'}</td>
-                      <td className="text-[11px] px-1 py-2 text-center">{fmt0(it.quantity)}</td>
-                      <td className="rt text-right text-[11px] px-2 py-2">{fmt(Number(it.unit_price))}</td>
-                      <td className="rt text-right text-[11px] px-2 py-2">{fmt(base)}</td>
-                      <td className="text-[11px] px-1 py-2 text-center">{Number(it.gst_percentage)}%</td>
-                      <td className="rt text-right text-[11px] px-2 py-2">{fmt(cgst)}</td>
-                      <td className="rt text-right text-[11px] px-2 py-2">{fmt(sgst)}</td>
-                      <td className="rt text-right text-[11px] px-2 py-2 font-semibold">{fmt(total)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
 
-            {/* Summary section */}
-            <div className="summary-section flex gap-px bg-gray-200">
-              <div className="amount-words flex-1 px-4 py-3 bg-white">
-                <div className="amount-label text-[9px] font-bold text-green-600 uppercase tracking-wider mb-1">Amount in Words</div>
-                <div className="amount-text text-[11px] text-green-900 font-semibold">{numberToWords(Number(invoice.grand_total))}</div>
-              </div>
-              <div className="summary-table w-[280px]">
-                <table className="w-full">
-                  <tbody>
-                    <tr>
-                      <td className="label text-left text-[11px] text-gray-600 border-none px-3 py-1">Subtotal</td>
-                      <td className="text-right text-[11px] border-none px-3 py-1">&#8377;{fmt(Number(invoice.subtotal))}</td>
                     </tr>
-                    {Number(invoice.discount_value) > 0 && (
-                      <tr>
-                        <td className="label text-left text-[11px] text-gray-600 border-none px-3 py-1">Discount {invoice.discount_type === 'percentage' ? `(${invoice.discount_value}%)` : ''}</td>
-                        <td className="text-right text-[11px] border-none px-3 py-1">- &#8377;{fmt(Number(invoice.discount_value))}</td>
-                      </tr>
-                    )}
-                    <tr>
-                      <td className="label text-left text-[11px] text-gray-600 border-none px-3 py-1">CGST</td>
-                      <td className="text-right text-[11px] border-none px-3 py-1">&#8377;{fmt(Number(invoice.gst_total) / 2)}</td>
-                    </tr>
-                    <tr>
-                      <td className="label text-left text-[11px] text-gray-600 border-none px-3 py-1">SGST</td>
-                      <td className="text-right text-[11px] border-none px-3 py-1">&#8377;{fmt(Number(invoice.gst_total) / 2)}</td>
-                    </tr>
-                    {Number(invoice.tcs_value) > 0 && (
-                      <tr>
-                        <td className="label text-left text-[11px] text-gray-600 border-none px-3 py-1">TCS {invoice.tcs_type === 'percentage' ? `(${invoice.tcs_value}%)` : ''}</td>
-                        <td className="text-right text-[11px] border-none px-3 py-1">&#8377;{fmt(Number(invoice.tcs_type === 'percentage' ? (Number(invoice.subtotal) * Number(invoice.tcs_value)) / 100 : invoice.tcs_value))}</td>
-                      </tr>
-                    )}
-                    {Number(invoice.round_off) !== 0 && (
-                      <tr>
-                        <td className="label text-left text-[11px] text-gray-600 border-none px-3 py-1">Round Off</td>
-                        <td className="text-right text-[11px] border-none px-3 py-1">&#8377;{fmt(Number(invoice.round_off))}</td>
-                      </tr>
-                    )}
-                    <tr className="total">
-                      <td className="text-left text-sm font-bold text-green-900 border-t-2 border-green-900 border-none px-3 pt-2 py-1">Grand Total</td>
-                      <td className="text-right text-sm font-bold text-green-900 border-t-2 border-green-900 border-none px-3 pt-2 py-1">&#8377;{fmt(Number(invoice.grand_total))}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
 
-            {/* Bank details */}
-            <div className="bank-section flex gap-px bg-gray-200">
-              <div className="bank-box flex-1 px-4 py-3 bg-green-50">
-                <div className="bank-label text-[9px] font-bold text-green-600 uppercase tracking-wider mb-1.5">Bank Details</div>
-                <div className="bank-detail text-[10px] text-gray-600 leading-relaxed">
-                  {invoice.bank_details && (
-                  <div className="mb-2 text-[10px] text-gray-600 leading-relaxed">
-                    <span className="font-bold text-green-600">Invoice Bank Details:</span> {invoice.bank_details}
+                  ) : (
+
+                    items.map(
+                      (
+                        it,
+                        idx
+                      ) => {
+
+                        const base =
+                          Number(
+                            it.base_amount
+                          ) || 0;
+
+                        const gst =
+                          Number(
+                            it.gst_amount
+                          ) || 0;
+
+                        const total =
+                          Number(
+                            it.total
+                          ) || 0;
+
+                        const cgst =
+                          gst / 2;
+
+                        const sgst =
+                          gst / 2;
+
+                        return (
+                          <tr
+                            key={
+                              it.id ||
+                              `${idx}-${it.description}`
+                            }
+                          >
+
+                            <td className="center">
+                              {
+                                idx +
+                                1
+                              }
+                            </td>
+
+                            <td className="description">
+
+                              {
+                                it.description
+                              }
+
+                              {it.item_note && (
+                                <div className="item-note">
+                                  {
+                                    it.item_note
+                                  }
+                                </div>
+                              )}
+
+                            </td>
+
+                            <td className="center">
+                              {
+                                it.hsn_sac_code ||
+                                '—'
+                              }
+                            </td>
+
+                            <td className="center">
+                              {
+                                it.unit ||
+                                'NOS'
+                              }
+                            </td>
+
+                            <td className="center">
+                              {fmt0(
+                                Number(
+                                  it.quantity
+                                )
+                              )}
+                            </td>
+
+                            <td className="right">
+                              {fmt(
+                                Number(
+                                  it.unit_price
+                                )
+                              )}
+                            </td>
+
+                            <td className="right">
+                              {fmt(
+                                base
+                              )}
+                            </td>
+
+                            <td className="center">
+                              {
+                                Number(
+                                  it.gst_percentage
+                                ) ||
+                                0
+                              }
+                              %
+                            </td>
+
+                            <td className="right">
+                              {fmt(
+                                cgst
+                              )}
+                            </td>
+
+                            <td className="right">
+                              {fmt(
+                                sgst
+                              )}
+                            </td>
+
+                            <td className="right">
+
+                              <strong>
+                                {fmt(
+                                  total
+                                )}
+                              </strong>
+
+                            </td>
+
+                          </tr>
+                        );
+                      }
+                    )
+
+                  )}
+
+                  {/* TOTAL */}
+
+                  <tr className="item-total-row">
+
+                    <td
+                      colSpan={
+                        5
+                      }
+                      className="right"
+                    >
+                      Total
+                    </td>
+
+                    <td />
+
+                    <td className="right">
+                      {fmt(
+                        subtotal
+                      )}
+                    </td>
+
+                    <td />
+
+                    <td className="right">
+                      {fmt(
+                        cgstTotal
+                      )}
+                    </td>
+
+                    <td className="right">
+                      {fmt(
+                        sgstTotal
+                      )}
+                    </td>
+
+                    <td className="right">
+                      {fmt(
+                        grandTotal
+                      )}
+                    </td>
+
+                  </tr>
+
+                </tbody>
+
+              </table>
+
+              {/* =================================================
+                  SUMMARY
+              ================================================= */}
+
+              <div className="summary-section">
+
+                <div className="amount-words">
+
+                  <div className="amount-words-title">
+                    Total in Words
                   </div>
-                )}
-                {bankName && <div>Bank: <span className="font-semibold text-green-900">{bankName}</span></div>}
-                  {accountNumber && <div>A/C: <span className="font-semibold text-green-900">{accountNumber}</span></div>}
-                  {ifscCode && <div>IFSC: <span className="font-semibold text-green-900">{ifscCode}</span></div>}
-                  {branch && <div>Branch: <span className="font-semibold text-green-900">{branch}</span></div>}
-                  {upiId && <div>UPI: <span className="font-semibold text-green-900">{upiId}</span>{upiQr && (
-  <div className="mt-4">
-    <img
-      src={upiQr}
-      alt="UPI QR"
-      className="w-28 h-28 border rounded bg-white p-2"
-    />
 
-    <p className="text-[10px] text-center mt-2 text-gray-600">
-      Scan & Pay
-    </p>
-  </div>
-)}</div>}
-                  {!bankName && !accountNumber && !upiId && <div className="text-gray-400">Bank details not configured. Set them in Company Settings.</div>}
+                  <div className="amount-words-text">
+                    {numberToWords(
+                      grandTotal
+                    )}
+                  </div>
+
                 </div>
-              </div>
-              <div className="bank-box flex-1 px-4 py-3 bg-green-50">
-                <div className="bank-label text-[9px] font-bold text-green-600 uppercase tracking-wider mb-1.5">Tax Summary</div>
-                <div className="bank-detail text-[10px] text-gray-600 leading-relaxed">
-                  <div>Taxable Amount: <span className="font-semibold text-green-900">&#8377;{fmt(Number(invoice.subtotal))}</span></div>
-                  <div>CGST: <span className="font-semibold text-green-900">&#8377;{fmt(Number(invoice.gst_total) / 2)}</span></div>
-                  <div>SGST: <span className="font-semibold text-green-900">&#8377;{fmt(Number(invoice.gst_total) / 2)}</span></div>
-                  <div>Total Tax: <span className="font-semibold text-green-900">&#8377;{fmt(Number(invoice.gst_total))}</span></div>
+
+                <div>
+
+                  <table className="summary-table">
+
+                    <tbody>
+
+                      <tr>
+
+                        <td>
+                          Taxable Amount
+                        </td>
+
+                        <td>
+                          ₹
+                          {fmt(
+                            subtotal
+                          )}
+                        </td>
+
+                      </tr>
+
+                      {discountValue >
+                        0 && (
+                        <tr>
+
+                          <td>
+
+                            Discount
+
+                            {invoice.discount_type ===
+                              'percentage' &&
+                              ` (${invoice.discount_value}%)`}
+
+                          </td>
+
+                          <td>
+                            - ₹
+                            {fmt(
+                              discountValue
+                            )}
+                          </td>
+
+                        </tr>
+                      )}
+
+                      <tr>
+
+                        <td>
+                          Add : CGST
+                        </td>
+
+                        <td>
+                          ₹
+                          {fmt(
+                            cgstTotal
+                          )}
+                        </td>
+
+                      </tr>
+
+                      <tr>
+
+                        <td>
+                          Add : SGST
+                        </td>
+
+                        <td>
+                          ₹
+                          {fmt(
+                            sgstTotal
+                          )}
+                        </td>
+
+                      </tr>
+
+                      {tcsValue >
+                        0 && (
+                        <tr>
+
+                          <td>
+
+                            TCS
+
+                            {invoice.tcs_type ===
+                              'percentage' &&
+                              ` (${invoice.tcs_value}%)`}
+
+                          </td>
+
+                          <td>
+                            ₹
+                            {fmt(
+                              tcsAmount
+                            )}
+                          </td>
+
+                        </tr>
+                      )}
+
+                      {roundOff !==
+                        0 && (
+                        <tr>
+
+                          <td>
+                            Round Off
+                          </td>
+
+                          <td>
+                            ₹
+                            {fmt(
+                              roundOff
+                            )}
+                          </td>
+
+                        </tr>
+                      )}
+
+                      <tr className="summary-grand">
+
+                        <td>
+                          Total Amount After Tax
+                        </td>
+
+                        <td>
+                          ₹
+                          {fmt(
+                            grandTotal
+                          )}
+                        </td>
+
+                      </tr>
+
+                    </tbody>
+
+                  </table>
+
                 </div>
-              </div>
-            </div>
 
-            {/* Signature */}
-            <div className="sign-section flex justify-between px-5 py-4">
-              <div className="sign-left text-[10px] text-gray-500 max-w-[200px] leading-relaxed">
-                {invoice.notes && (
-                  <div>
-                    <div className="font-bold text-green-600 uppercase tracking-wider text-[9px] mb-1">Notes</div>
-                    <div>{invoice.notes}</div>
+              </div>
+
+              {/* =================================================
+                  BANK + TAX
+              ================================================= */}
+
+              <div className="bottom-section">
+
+                {/* BANK */}
+
+                <div className="bank-section">
+
+                  <div className="bank-heading">
+                    Bank Details
+                  </div>
+
+                  <div className="bank-content">
+
+                    <div className="bank-info">
+
+                      {invoice.bank_details && (
+                        <div className="invoice-bank-detail">
+
+                          <strong>
+                            Invoice Bank Details:
+                          </strong>{' '}
+
+                          {
+                            invoice.bank_details
+                          }
+
+                        </div>
+                      )}
+
+                      {bankName && (
+                        <div className="bank-info-row">
+
+                          <span className="bank-info-label">
+                            Name
+                          </span>
+
+                          <span className="bank-info-value">
+                            {
+                              bankName
+                            }
+                          </span>
+
+                        </div>
+                      )}
+
+                      {branch && (
+                        <div className="bank-info-row">
+
+                          <span className="bank-info-label">
+                            Branch
+                          </span>
+
+                          <span className="bank-info-value">
+                            {
+                              branch
+                            }
+                          </span>
+
+                        </div>
+                      )}
+
+                      {accountNumber && (
+                        <div className="bank-info-row">
+
+                          <span className="bank-info-label">
+                            A/C Number
+                          </span>
+
+                          <span className="bank-info-value">
+                            {
+                              accountNumber
+                            }
+                          </span>
+
+                        </div>
+                      )}
+
+                      {ifscCode && (
+                        <div className="bank-info-row">
+
+                          <span className="bank-info-label">
+                            IFSC
+                          </span>
+
+                          <span className="bank-info-value">
+                            {
+                              ifscCode
+                            }
+                          </span>
+
+                        </div>
+                      )}
+
+                      {upiId && (
+                        <div className="bank-info-row">
+
+                          <span className="bank-info-label">
+                            UPI ID
+                          </span>
+
+                          <span className="bank-info-value">
+                            {
+                              upiId
+                            }
+                          </span>
+
+                        </div>
+                      )}
+
+                      {!bankName &&
+                        !accountNumber &&
+                        !ifscCode &&
+                        !upiId && (
+                          <div>
+                            Bank details not configured.
+                          </div>
+                        )}
+
+                    </div>
+
+                    {/* UPI QR */}
+
+                    {upiQr && (
+                      <div className="qr-area">
+
+                        <img
+                          src={
+                            upiQr
+                          }
+                          alt="UPI QR Code"
+                        />
+
+                        <div className="qr-text">
+                          Scan & Pay
+                        </div>
+
+                      </div>
+                    )}
+
+                  </div>
+
+                </div>
+
+                {/* TAX SUMMARY */}
+
+                <div className="tax-section">
+
+                  <div className="tax-heading">
+                    Tax Summary
+                  </div>
+
+                  <table className="tax-table">
+
+                    <tbody>
+
+                      <tr>
+
+                        <td>
+                          Taxable Amount
+                        </td>
+
+                        <td>
+                          ₹
+                          {fmt(
+                            subtotal
+                          )}
+                        </td>
+
+                      </tr>
+
+                      <tr>
+
+                        <td>
+                          Add : CGST
+                        </td>
+
+                        <td>
+                          ₹
+                          {fmt(
+                            cgstTotal
+                          )}
+                        </td>
+
+                      </tr>
+
+                      <tr>
+
+                        <td>
+                          Add : SGST
+                        </td>
+
+                        <td>
+                          ₹
+                          {fmt(
+                            sgstTotal
+                          )}
+                        </td>
+
+                      </tr>
+
+                      <tr>
+
+                        <td>
+                          Total Tax
+                        </td>
+
+                        <td>
+                          ₹
+                          {fmt(
+                            gstTotal
+                          )}
+                        </td>
+
+                      </tr>
+
+                      <tr>
+
+                        <td>
+                          Total Invoice Value
+                        </td>
+
+                        <td>
+                          ₹
+                          {fmt(
+                            grandTotal
+                          )}
+                        </td>
+
+                      </tr>
+
+                    </tbody>
+
+                  </table>
+
+                </div>
+
+              </div>
+
+              {/* =================================================
+                  SOCIAL MEDIA QR CODES
+              ================================================= */}
+
+              {socialLinks.length >
+                0 &&
+                Object.keys(
+                  socialQrs
+                ).length >
+                  0 && (
+
+                  <div className="social-section">
+
+                    <div className="social-heading">
+                      Connect With Us
+                    </div>
+
+                    <div className="social-grid">
+
+                      {socialLinks.map(
+                        (
+                          social
+                        ) => {
+
+                          const qr =
+                            socialQrs[
+                              social.id
+                            ];
+
+                          if (
+                            !qr
+                          ) {
+                            return null;
+                          }
+
+                          return (
+                            <div
+                              key={
+                                social.id
+                              }
+                              className="social-card"
+                            >
+
+                              <img
+                                src={
+                                  qr
+                                }
+                                alt={`${getSocialLabel(
+                                  social
+                                )} QR Code`}
+                              />
+
+                              <div className="social-card-title">
+                                {
+                                  getSocialLabel(
+                                    social
+                                  )
+                                }
+                              </div>
+
+                              <div className="social-card-url">
+                                {
+                                  social.url
+                                }
+                              </div>
+
+                            </div>
+                          );
+                        }
+                      )}
+
+                    </div>
+
                   </div>
                 )}
-                {invoice.terms_title && (
-                  <div className="mt-3">
-                    <div className="font-bold text-green-600 uppercase tracking-wider text-[9px] mb-1">{invoice.terms_title}</div>
-                    <div className="text-[10px]">{invoice.terms_detail}</div>
+
+              {/* =================================================
+                  TERMS + SIGNATURE
+              ================================================= */}
+
+              <div className="final-section">
+
+                {/* TERMS */}
+
+                <div className="terms-section">
+
+                  <div className="terms-heading">
+                    Terms & Conditions
                   </div>
-                )}
-                {invoice.ship_to && (
-                  <div className="mt-3">
-                    <div className="font-bold text-green-600 uppercase tracking-wider text-[9px] mb-1">Ship To</div>
-                    <div className="text-[10px]">{invoice.ship_to}</div>
+
+                  <div className="terms-content">
+
+                    {invoice.notes && (
+                      <div className="term-line">
+
+                        <strong>
+                          Notes:
+                        </strong>{' '}
+
+                        {
+                          invoice.notes
+                        }
+
+                      </div>
+                    )}
+
+                    {invoice.terms_title && (
+                      <div className="term-line">
+
+                        <strong>
+                          {
+                            invoice.terms_title
+                          }
+                          :
+                        </strong>{' '}
+
+                        {
+                          invoice.terms_detail
+                        }
+
+                      </div>
+                    )}
+
+                    {invoice.ship_to && (
+                      <div className="term-line">
+
+                        <strong>
+                          Ship To:
+                        </strong>{' '}
+
+                        {
+                          invoice.ship_to
+                        }
+
+                      </div>
+                    )}
+
+                    <div className="term-line">
+                      Subject to our home jurisdiction.
+                    </div>
+
+                    <div className="term-line">
+                      Our responsibility ceases as soon as goods leave our premises.
+                    </div>
+
+                    <div className="term-line">
+                      Goods once sold will not be taken back.
+                    </div>
+
+                    <div className="term-line">
+                      Delivery Ex-Premises.
+                    </div>
+
+                    <div className="term-line">
+                      This is a computer-generated invoice.
+                    </div>
+
                   </div>
-                )}
-                <div className="mt-3">This is a computer-generated invoice and does not require a physical signature.</div>
+
+                </div>
+
+                {/* SIGNATURE */}
+
+                <div className="signature-section">
+
+                  <div className="for-company">
+                    For {companyName}
+                  </div>
+
+                  {settings?.signature_url ? (
+
+                    <img
+                      src={
+                        settings.signature_url
+                      }
+                      alt="Authorised Signature"
+                      className="signature-image"
+                    />
+
+                  ) : (
+
+                    <div className="signature-placeholder" />
+
+                  )}
+
+                  <div className="authorised">
+                    Authorised Signatory
+                  </div>
+
+                </div>
+
               </div>
-              <div className="sign-right text-right">
-                <div className="text-[10px] text-gray-600">For <span className="font-bold text-green-900">{companyName}</span></div>
-                <div className="text-right">
 
-    {settings?.signature_url && (
-  <img
-    src={settings.signature_url}
-    alt="Signature"
-    className="h-16 ml-auto object-contain"
-  />
-)}
+              {/* =================================================
+                  FOOTER
+              ================================================= */}
 
-    <div className="text-xs text-gray-600 mt-1">
-        Authorised Signatory
-    </div>
+              <div className="invoice-footer">
 
-</div>
+                Certified that the particulars given above are true and correct.
+
               </div>
+
             </div>
 
-            {/* Footer */}
-            <div className="footer bg-green-900 text-green-100 px-5 py-2 text-[10px] text-center">
-              Thank you for your business! &middot; {companyName} &middot; {companyPhone} &middot; {companyEmail}
-            </div>
           </div>
+
         </div>
+
       </div>
+
     </div>
   );
 }
