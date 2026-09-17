@@ -90,8 +90,11 @@ export default function InvoiceModal({ order, onClose }: Props) {
 
   const companyName = settings?.company_name || 'Your Company';
   const companyAddress = settings?.address || '';
-  const companyPhone = settings?.phone || '';
-  const companyEmail = settings?.email || '';
+ const companyPhone =
+  settings?.phone_numbers?.[0] || '';
+
+const companyEmail =
+  settings?.emails?.[0] || '';
   const companyGstin = settings?.gstin || '';
   const companyPan = settings?.pan || '';
   const bankName = settings?.bank_name || '';

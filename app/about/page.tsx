@@ -62,8 +62,11 @@ export default async function AboutPage() {
 
   const companyName = settings?.company_name || 'Bharat Advance';
   const companyAddress = settings?.address || '';
-  const companyPhone = settings?.phone || '';
-  const companyEmail = settings?.email || '';
+ const companyPhone =
+  settings?.phone_numbers?.[0] || '';
+
+const companyEmail =
+  settings?.emails?.[0] || '';
   const logoUrl = settings?.logo_url || '/bmn_logo.jpeg';
 
   const stats = [
@@ -80,8 +83,8 @@ export default async function AboutPage() {
     { icon: Award, title: 'Excellence', desc: 'We don\'t settle for good enough. We pursue excellence in everything we do.' },
   ];
   const companyInfo = {
-  phone: '9582139182',
-  email: 'bharatadvance96@gmail.com',
+  phone: companyPhone,
+  email: companyEmail,
   indiaMart: 'https://www.indiamart.com/bmnenterprises-newdelhi/',
   youtube: 'https://www.youtube.com/@BMNENTERPRISES',
   googleReview: 'https://share.google/4eVadrdCg29ARuHSA',

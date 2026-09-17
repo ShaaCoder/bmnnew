@@ -988,24 +988,23 @@ export default function InvoiceViewModal({
              UPI QR
           --------------------------------------------- */
 
-          if (
-            data.upi_id &&
-            isValidUrl(
-              'https://example.com'
-            )
-          ) {
+          /* ---------------------------------------------
+             UPI QR
+             UPI IDs are not HTTP URLs, so do not run
+             them through isValidUrl().
+          --------------------------------------------- */
+
+          if (data.upi_id?.trim()) {
             try {
               const upiPayload =
                 `upi://pay?pa=${encodeURIComponent(
-                  data.upi_id
+                  data.upi_id.trim()
                 )}` +
                 `&pn=${encodeURIComponent(
-                  data.company_name ||
-                    ''
+                  data.company_name || ''
                 )}` +
                 `&am=${Number(
-                  invoice.grand_total ||
-                    0
+                  invoice.grand_total || 0
                 ).toFixed(2)}` +
                 `&cu=INR`;
 
@@ -1015,14 +1014,11 @@ export default function InvoiceViewModal({
                   {
                     margin: 1,
                     width: 300,
-                    errorCorrectionLevel:
-                      'M',
+                    errorCorrectionLevel: 'M',
                   }
                 );
 
-              if (
-                !cancelled
-              ) {
+              if (!cancelled) {
                 setUpiQr(qr);
               }
             } catch (error) {
@@ -1031,59 +1027,12 @@ export default function InvoiceViewModal({
                 error
               );
 
-              if (
-                !cancelled
-              ) {
+              if (!cancelled) {
                 setUpiQr('');
               }
             }
-          } else {
-            /*
-             * UPI IDs don't need URL validation.
-             * Generate QR whenever a UPI ID exists.
-             */
-
-            if (data.upi_id) {
-              try {
-                const upiPayload =
-                  `upi://pay?pa=${encodeURIComponent(
-                    data.upi_id
-                  )}` +
-                  `&pn=${encodeURIComponent(
-                    data.company_name ||
-                      ''
-                  )}` +
-                  `&am=${Number(
-                    invoice.grand_total ||
-                      0
-                  ).toFixed(2)}` +
-                  `&cu=INR`;
-
-                const qr =
-                  await QRCode.toDataURL(
-                    upiPayload,
-                    {
-                      margin: 1,
-                      width: 300,
-                      errorCorrectionLevel:
-                        'M',
-                    }
-                  );
-
-                if (
-                  !cancelled
-                ) {
-                  setUpiQr(qr);
-                }
-              } catch (error) {
-                console.error(
-                  'UPI QR Generation Error:',
-                  error
-                );
-              }
-            } else {
-              setUpiQr('');
-            }
+          } else if (!cancelled) {
+            setUpiQr('');
           }
 
           /* ---------------------------------------------
@@ -1232,33 +1181,25 @@ export default function InvoiceViewModal({
      MULTIPLE PHONE NUMBERS
   ========================================================= */
 
-  const companyPhones =
-    Array.isArray(
-      settings?.phone_numbers
-    )
-      ? settings.phone_numbers
-          .map(
-            (phone) =>
-              phone?.trim()
-          )
-          .filter(Boolean)
-      : [];
+  const companyPhones: string[] =
+    (settings?.phone_numbers ?? [])
+      .map((phone) => phone?.trim())
+      .filter(
+        (phone): phone is string =>
+          Boolean(phone)
+      );
 
   /* =========================================================
      MULTIPLE EMAILS
   ========================================================= */
 
-  const companyEmails =
-    Array.isArray(
-      settings?.emails
-    )
-      ? settings.emails
-          .map(
-            (email) =>
-              email?.trim()
-          )
-          .filter(Boolean)
-      : [];
+  const companyEmails: string[] =
+    (settings?.emails ?? [])
+      .map((email) => email?.trim())
+      .filter(
+        (email): email is string =>
+          Boolean(email)
+      );
 
   const companyGstin =
     settings?.gstin || '';
