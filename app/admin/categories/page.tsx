@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -22,6 +23,7 @@ type Form = {
   slug: string;
   description: string;
   image_url: string;
+  hsn_code: string;
 };
 
 /* =========================================================
@@ -33,6 +35,7 @@ const emptyForm: Form = {
   slug: '',
   description: '',
   image_url: '',
+  hsn_code: '',
 };
 
 /* =========================================================
@@ -120,7 +123,10 @@ export default function AdminCategories() {
   ======================================================= */
 
   const openAdd = () => {
-    setForm(emptyForm);
+    setForm({
+      ...emptyForm,
+    });
+
     setEditing(null);
     setModal('add');
     setError('');
@@ -140,6 +146,8 @@ export default function AdminCategories() {
         category.description || '',
       image_url:
         category.image_url || '',
+      hsn_code:
+        category.hsn_code || '',
     });
 
     setModal('edit');
@@ -159,6 +167,28 @@ export default function AdminCategories() {
       name,
       value,
     } = e.target;
+
+    /* -----------------------------------------------------
+       HSN CODE
+       Allow numbers only
+       Maximum 8 digits
+    ----------------------------------------------------- */
+
+    if (name === 'hsn_code') {
+      const numericValue =
+        value.replace(/\D/g, '').slice(0, 8);
+
+      setForm((current) => ({
+        ...current,
+        hsn_code: numericValue,
+      }));
+
+      return;
+    }
+
+    /* -----------------------------------------------------
+       NORMAL INPUTS
+    ----------------------------------------------------- */
 
     setForm((current) => ({
       ...current,
@@ -206,7 +236,7 @@ export default function AdminCategories() {
     setError('');
 
     /* -------------------------------------------------------
-       VALIDATION
+       VALIDATION - NAME
     ------------------------------------------------------- */
 
     if (!form.name.trim()) {
@@ -216,9 +246,39 @@ export default function AdminCategories() {
       return;
     }
 
+    /* -------------------------------------------------------
+       VALIDATION - SLUG
+    ------------------------------------------------------- */
+
     if (!form.slug.trim()) {
       setError(
         'Category slug is required.'
+      );
+      return;
+    }
+
+    /* -------------------------------------------------------
+       VALIDATION - HSN/SAC
+       
+       Allowed:
+       4 digits
+       6 digits
+       8 digits
+       
+       Examples:
+       3402
+       340220
+       34022010
+    ------------------------------------------------------- */
+
+    const hsn = form.hsn_code.trim();
+
+    if (
+      hsn &&
+      !/^[0-9]{4}([0-9]{2})?([0-9]{2})?$/.test(hsn)
+    ) {
+      setError(
+        'HSN/SAC code must contain 4, 6, or 8 digits.'
       );
       return;
     }
@@ -238,6 +298,12 @@ export default function AdminCategories() {
         image_url:
           form.image_url.trim() ||
           null,
+
+        /*
+         * Save empty HSN as NULL.
+         */
+        hsn_code:
+          hsn || null,
       };
 
       /* -----------------------------------------------------
@@ -299,7 +365,9 @@ export default function AdminCategories() {
 
       setEditing(null);
 
-      setForm(emptyForm);
+      setForm({
+        ...emptyForm,
+      });
 
       await load();
 
@@ -386,7 +454,9 @@ export default function AdminCategories() {
 
     setEditing(null);
 
-    setForm(emptyForm);
+    setForm({
+      ...emptyForm,
+    });
 
     setError('');
   };
@@ -520,7 +590,7 @@ export default function AdminCategories() {
 
                   <div className="flex items-start justify-between">
 
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
 
                       <h3 className="font-display font-semibold text-green-900">
                         {category.name}
@@ -530,9 +600,21 @@ export default function AdminCategories() {
                         {category.slug}
                       </p>
 
+                      {/* HSN CODE */}
+
+                      <div className="mt-2">
+
+                        <span className="inline-flex items-center px-2 py-1 rounded-md bg-green-50 border border-green-100 text-[11px] font-medium text-green-700">
+                          HSN/SAC:{' '}
+                          {category.hsn_code ||
+                            'Not set'}
+                        </span>
+
+                      </div>
+
                       {category.description && (
 
-                        <p className="text-xs text-green-600 mt-1.5 line-clamp-2">
+                        <p className="text-xs text-green-600 mt-2 line-clamp-2">
                           {
                             category.description
                           }
@@ -692,6 +774,33 @@ export default function AdminCategories() {
                   placeholder="floor-cleaners"
                   required
                 />
+
+              </div>
+
+              {/* HSN / SAC CODE */}
+
+              <div>
+
+                <label className="block text-xs font-medium text-green-700 mb-1.5">
+                  Default HSN / SAC Code
+                </label>
+
+                <input
+                  name="hsn_code"
+                  value={form.hsn_code}
+                  onChange={
+                    handleChange
+                  }
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={8}
+                  className="w-full px-3.5 py-2.5 text-sm border border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-400 bg-green-50 font-mono"
+                  placeholder="e.g. 3402"
+                />
+
+                <p className="text-[11px] text-green-500 mt-1.5">
+                  Enter 4, 6, or 8 digits. This will be used as the default HSN/SAC for products in this category.
+                </p>
 
               </div>
 

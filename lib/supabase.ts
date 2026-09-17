@@ -11,6 +11,7 @@ export type Category = {
   slug: string;
   description: string | null;
   image_url: string | null;
+  hsn_code: string | null; // NEW
   created_at: string;
 };
 
@@ -22,6 +23,7 @@ export type Product = {
   description: string | null;
   price: number;
   gst_percentage: number;
+  hsn_code: string | null; // NEW
   images: string[];
   stock: number;
   featured: boolean;
@@ -32,6 +34,7 @@ export type Product = {
   min_stock: number;
   is_offline: boolean;
   created_at: string;
+
   categories?: Category;
 };
 
@@ -122,43 +125,65 @@ export type Invoice = {
   invoice_number: string;
   order_id: string | null;
   supplier_id: string | null;
+
   invoice_type: string;
   invoice_prefix: string | null;
+
   challan_no: string | null;
   challan_date: string | null;
+
   po_no: string | null;
   po_date: string | null;
+
   lr_no: string | null;
   eway_no: string | null;
   delivery_mode: string | null;
+
   customer_name: string;
-  customer_email: string;
+  customer_email: string | null;
   customer_phone: string | null;
   customer_address: string | null;
+
   contact_person: string | null;
+
   customer_gst: string | null;
   customer_pan: string | null;
   place_of_supply: string | null;
+
   invoice_date: string;
   due_date: string | null;
+
   reverse_charge: string;
   ship_to: string | null;
+
   bank_details: string | null;
+
   terms_title: string | null;
   terms_detail: string | null;
+
   document_notes: string | null;
+
   tcs_value: number;
   tcs_type: string;
+
   discount_value: number;
   discount_type: string;
+
   round_off: number;
+
   payment_type: string;
+
   subtotal: number;
   gst_total: number;
   grand_total: number;
+
   notes: string | null;
-  status: 'draft' | 'sent' | 'paid' | 'cancelled';
+
+  status: 'draft' | 'sent' | 'paid' | 'pending' | 'cancelled';
+
   created_at: string;
+  updated_at?: string;
+
   invoice_items?: InvoiceItem[];
 };
 
@@ -216,20 +241,28 @@ export type HsnCode = {
 export type InvoiceItem = {
   id: string;
   invoice_id: string;
+
   description: string;
+
   quantity: number;
+  unit: string;
+
   unit_price: number;
-  gst_percentage: number;
+
   hsn_sac_code: string | null;
-  unit: string | null;
-  item_note: string | null;
-  discount_value: number;
-  discount_type: string;
-  stock_quantity: number | null;
+
+  gst_percentage: number;
+
   base_amount: number;
   gst_amount: number;
   total: number;
+
   created_at: string;
+
+  discount_value: number;
+  discount_type: string;
+
+  item_note: string | null;
 };
 
 // ============================================================
@@ -271,79 +304,136 @@ export type Supplier = {
 export type PurchaseOrder = {
   id: string;
   po_number: string;
+
   supplier_id: string | null;
+
   invoice_type: string;
+
   order_date: string;
   expected_date: string | null;
   due_date: string | null;
+
   status: 'draft' | 'received' | 'cancelled';
+
+  // Vendor details
   vendor_address: string | null;
   vendor_contact_person: string | null;
   vendor_phone: string | null;
   vendor_gstin_pan: string | null;
+
+  place_of_supply: string | null;
   reverse_charge: string;
   ship_to: string | null;
-  place_of_supply: string | null;
+
+  // Purchase invoice details
   invoice_no: string | null;
   invoice_date: string | null;
+
   challan_no: string | null;
   challan_date: string | null;
+
   lr_no: string | null;
   eway_no: string | null;
   delivery_mode: string | null;
-  terms_title: string | null;
-  terms_detail: string | null;
-  document_notes: string | null;
-  tcs_value: number;
-  tcs_type: string;
-  discount_value: number;
-  discount_type: string;
-  round_off: number;
+
+  // Commercial
   payment_type: string;
-  update_product_price: boolean;
+
+  discount_value: number;
+  discount_type: 'amount' | 'percentage' | string;
+
+  tcs_value: number;
+  tcs_type: 'amount' | 'percentage' | string;
+
+  round_off: number;
+
   subtotal: number;
   gst_total: number;
   grand_total: number;
+
+  update_product_price: boolean;
+
+  // Terms / notes
+  terms_title: string | null;
+  terms_detail: string | null;
+  document_notes: string | null;
   notes: string | null;
+
   created_at: string;
+  updated_at: string;
+
+  // Relations
   suppliers?: Supplier | null;
   purchase_order_items?: PurchaseOrderItem[];
 };
 
+
 export type PurchaseOrderItem = {
   id: string;
+
   purchase_order_id: string;
   product_id: string | null;
+
   description: string;
+
   barcode_no: string | null;
+
   quantity: number;
+
   uom: string;
+
   unit_price: number;
+
   gst_percentage: number;
+
   hsn_sac_code: string | null;
-  item_note: string | null;
+
   discount_value: number;
-  discount_type: string;
-  stock_quantity: number | null;
+
+  discount_type: 'amount' | 'percentage' | string;
+
+  item_note: string | null;
+
   base_amount: number;
+
   gst_amount: number;
+
   total: number;
+
   created_at: string;
+
+  // Related product
   products?: Product | null;
 };
 
+
+
 export type StockMovement = {
   id: string;
+
   product_id: string;
-  movement_type: 'purchase' | 'sale' | 'adjustment' | 'return' | 'transfer';
+
+  movement_type:
+    | 'purchase'
+    | 'sale'
+    | 'adjustment'
+    | 'return'
+    | 'transfer'
+    | 'damage'
+    | 'in'
+    | 'out';
+
   quantity: number;
+
   reference_type: string | null;
   reference_id: string | null;
+
   notes: string | null;
+
   created_at: string;
+
   products?: Product;
 };
-
 export type OfflineSale = {
   id: string;
   invoice_number: string;
