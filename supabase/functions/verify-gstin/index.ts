@@ -1,5 +1,7 @@
 // supabase/functions/verify-gstin/index.ts
+// @ts-nocheck
 
+// tumhara existing code yahan se start hoga
 // ============================================================
 // CORS CONFIGURATION
 // ============================================================
