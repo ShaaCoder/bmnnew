@@ -242,6 +242,10 @@ export type InvoiceItem = {
   id: string;
   invoice_id: string;
 
+  // Connected inventory product.
+  // NULL = custom product/service or a product that was deleted later.
+  product_id: string | null;
+
   description: string;
 
   quantity: number;

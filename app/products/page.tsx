@@ -7,8 +7,7 @@ import type { Metadata } from 'next';
 
 /*
  * Always fetch fresh product data.
- * This prevents the /products page from serving
- * an old cached product list.
+ * Offline products are filtered directly from Supabase.
  */
 export const revalidate = 0;
 
@@ -130,7 +129,9 @@ export async function generateMetadata({
       card: 'summary_large_image',
       title: `${title} | ${SITE_NAME}`,
       description,
-      images: [`${SITE_URL}/bmn_logo.jpeg`],
+      images: [
+        `${SITE_URL}/bmn_logo.jpeg`,
+      ],
     },
   };
 }
@@ -152,6 +153,14 @@ export default async function ProductsPage({
 
   /* =======================================================
      PRODUCTS QUERY
+     
+     IMPORTANT:
+     - We DO NOT use status because your products table
+       does not contain a status column.
+     - is_offline = false means the product is available
+       on the public online store.
+     - is_offline = true means physical/offline inventory
+       only.
   ======================================================= */
 
   let productsQuery = supabase
@@ -166,6 +175,7 @@ export default async function ProductsPage({
         image_url
       )
     `)
+    .eq('is_offline', false)
     .order('created_at', {
       ascending: false,
     });
@@ -211,7 +221,7 @@ export default async function ProductsPage({
   ]);
 
   /* =======================================================
-     IMPORTANT ERROR LOGGING
+     ERROR LOGGING
   ======================================================= */
 
   if (productsResult.error) {
@@ -239,20 +249,30 @@ export default async function ProductsPage({
     categoriesResult.data ?? [];
 
   /* =======================================================
-     FINAL CATEGORY FILTER
+     FINAL OFFLINE SAFETY FILTER
      
-     This guarantees the category filter is correct even
-     if the embedded Supabase relationship behaves
-     unexpectedly.
+     This is an additional frontend/server-side safeguard.
+     Even if the database query changes later, offline
+     products will not accidentally appear publicly.
+  ======================================================= */
+
+  const onlineProducts =
+    products.filter(
+      (product: any) =>
+        product.is_offline !== true
+    );
+
+  /* =======================================================
+     FINAL CATEGORY FILTER
   ======================================================= */
 
   const filtered = categorySlug
-    ? products.filter(
+    ? onlineProducts.filter(
         (product: any) =>
           product.categories?.slug ===
           categorySlug
       )
-    : products;
+    : onlineProducts;
 
   /* =======================================================
      CURRENT CATEGORY
