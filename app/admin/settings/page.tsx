@@ -24,7 +24,8 @@ import {
 } from 'lucide-react';
 
 import ImageUploader from '@/components/admin/ImageUploader';
-
+import WebsiteAppearanceSettings from '@/components/admin/WebsiteAppearanceSettings ';
+import WebsiteVideoSettings from '@/components/admin/WebsiteVideoSettings';
 /* =========================================================
    SOCIAL PLATFORM OPTIONS
 ========================================================= */
@@ -1678,7 +1679,8 @@ export default function AdminSettings() {
         </div>
 
       </div>
-
+              <WebsiteAppearanceSettings />
+              <WebsiteVideoSettings />
       {/* =====================================================
           TAX INFORMATION
       ===================================================== */}
